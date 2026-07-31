@@ -91,10 +91,10 @@ export default function BookingsPage() {
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">رزروهای من</h1>
         {loading ? (
-          <p className="text-gray-500 text-center py-8">در حال بارگذاری...</p>
+          <p className="text-gray-600 text-center py-8">در حال بارگذاری...</p>
         ) : bookings.length === 0 ? (
           <div className="rounded-xl bg-white p-12 text-center shadow-sm">
-            <p className="text-gray-500 mb-4">هنوز رزروی ندارید.</p>
+            <p className="text-gray-600 mb-4">هنوز رزروی ندارید.</p>
             <Link href="/employee/discover" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
               کشف باشگاه‌ها
             </Link>
@@ -110,7 +110,7 @@ export default function BookingsPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] || "bg-gray-100 text-gray-500"}`}>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] || "bg-gray-100 text-gray-600"}`}>
                         {statusLabels[b.status] || b.status}
                       </span>
                       <span className="text-xs text-gray-600">#{b.id}</span>
@@ -142,40 +142,40 @@ export default function BookingsPage() {
                   <div className="mt-4 border-t border-gray-100 pt-4 space-y-2 text-sm">
                     {b.timeslot_date && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500">زمان رزرو</span>
+                        <span className="text-gray-600">زمان رزرو</span>
                         <span className="text-gray-900 font-medium">{b.timeslot_date} &middot; {b.timeslot_start?.slice(0,5)} - {b.timeslot_end?.slice(0,5)}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-gray-500">تاریخ ثبت</span>
+                      <span className="text-gray-600">تاریخ ثبت</span>
                       <span className="text-gray-900">{formatDateTime(b.reserved_at)}</span>
                     </div>
                     {b.expires_at && (b.status === "reserved" || b.status === "paid") && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500">انقضا</span>
+                        <span className="text-gray-600">انقضا</span>
                         <span className="text-amber-600">{timeLeft(b.expires_at)}</span>
                       </div>
                     )}
                     {b.checked_in_at && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500">زمان ورود</span>
+                        <span className="text-gray-600">زمان ورود</span>
                         <span className="text-gray-900">{formatDateTime(b.checked_in_at)}</span>
                       </div>
                     )}
                     {b.cancelled_at && (
                       <div className="flex justify-between">
-                        <span className="text-gray-500">زمان لغو</span>
+                        <span className="text-gray-600">زمان لغو</span>
                         <span className="text-red-600">{formatDateTime(b.cancelled_at)}</span>
                       </div>
                     )}
                     {b.check_in_code && (b.status === "reserved" || b.status === "paid") && (
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500">کد ورود</span>
+                        <span className="text-gray-600">کد ورود</span>
                         <span className="font-mono text-lg font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg tracking-wider">{b.check_in_code}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-gray-500">کارمزد</span>
+                      <span className="text-gray-600">کارمزد</span>
                       <span className="text-gray-900">{formatTomans(b.employee_commission || 0)}</span>
                     </div>
                   </div>

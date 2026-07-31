@@ -48,7 +48,7 @@ export default function VenueDashboard() {
   const statusColors: Record<string, string> = {
     reserved: "bg-blue-100 text-blue-700",
     checked_in: "bg-emerald-100 text-emerald-700",
-    completed: "bg-gray-100 text-gray-500",
+    completed: "bg-gray-100 text-gray-600",
     cancelled: "bg-red-100 text-red-700",
     expired: "bg-amber-100 text-amber-700",
   };
@@ -126,13 +126,13 @@ export default function VenueDashboard() {
         {/* Reservation List */}
         <h2 className="mb-3 text-lg font-semibold text-gray-900">رزروها</h2>
         {bookings.length === 0 ? (
-          <p className="rounded-lg bg-white p-6 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید.</p>
+          <p className="rounded-lg bg-white p-6 text-center text-gray-600 shadow-sm">هنوز رزروی ندارید.</p>
         ) : (
           <div className="space-y-2">
             {bookings.map((b: any) => (
               <div key={b.id} className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-4">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] || "bg-gray-100 text-gray-500"}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] || "bg-gray-100 text-gray-600"}`}>
                     {statusLabels[b.status] || b.status}
                   </span>
                   <div>

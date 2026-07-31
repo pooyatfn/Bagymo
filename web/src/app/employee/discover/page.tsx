@@ -159,7 +159,7 @@ export default function DiscoverPage() {
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{selectedVenue.name}</h2>
-                <button onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }} className="text-gray-500 hover:text-gray-600 text-xl">&times;</button>
+                <button onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }} className="text-gray-600 hover:text-gray-600 text-xl">&times;</button>
               </div>
               <p className="mb-1 text-sm text-gray-600">{selectedVenue.district} &middot; {selectedVenue.city}</p>
               {selectedVenue.address && <p className="mb-3 text-sm text-gray-600">{selectedVenue.address}</p>}
@@ -205,7 +205,7 @@ export default function DiscoverPage() {
                   <p className="mb-1 font-semibold text-gray-900">{selectedOffer.name}</p>
                   <p className="mb-3 text-sm text-gray-600">{selectedOffer.duration_minutes} دقیقه &middot; {formatTomans(selectedOffer.price)}</p>
                   {timeslots.length === 0 ? (
-                    <p className="py-6 text-center text-gray-500">زمان رزرو موجود نیست.</p>
+                    <p className="py-6 text-center text-gray-600">زمان رزرو موجود نیست.</p>
                   ) : (
                     <>
                       <p className="mb-2 text-xs font-medium text-gray-600">زمان مورد نظر را انتخاب کنید:</p>
@@ -245,7 +245,7 @@ export default function DiscoverPage() {
               ) : (
                 /* Offer list */
                 offers.length === 0 ? (
-                  <p className="py-8 text-center text-gray-500">آفری موجود نیست.</p>
+                  <p className="py-8 text-center text-gray-600">آفری موجود نیست.</p>
                 ) : (
                   <div className="space-y-3">
                     {offers.map((o: any) => (

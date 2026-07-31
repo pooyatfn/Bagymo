@@ -28,7 +28,7 @@ export default function InvoicesPage() {
   if (!user) return null;
 
   const statusColors: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-500",
+    draft: "bg-gray-100 text-gray-600",
     pending: "bg-amber-100 text-amber-700",
     paid: "bg-emerald-100 text-emerald-700",
     failed: "bg-red-100 text-red-600",
@@ -110,7 +110,7 @@ export default function InvoicesPage() {
 
         {tab === "invoices" ? (
           invoices.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز فاکتوری ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز فاکتوری ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">
@@ -141,7 +141,7 @@ export default function InvoicesPage() {
           )
         ) : (
           bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز رزروی ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">

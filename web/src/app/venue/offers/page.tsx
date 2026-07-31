@@ -146,7 +146,7 @@ export default function VenueOffersPage() {
         )}
 
         {offers.length === 0 ? (
-          <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز آفری ندارید. آفر جدید ایجاد کنید.</p>
+          <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز آفری ندارید. آفر جدید ایجاد کنید.</p>
         ) : (
           <div className="space-y-3">
             {offers.map((o: any) => (

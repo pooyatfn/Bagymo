@@ -67,15 +67,15 @@ export default function ProfilePage() {
           {/* Read-only info */}
           <div className="mb-6 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">شماره تلفن</span>
+              <span className="text-gray-600">شماره تلفن</span>
               <span className="font-medium text-gray-900">{user.phone_number}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">نقش</span>
+              <span className="text-gray-600">نقش</span>
               <span className="font-medium text-gray-900">{roleLabels[user.role] || user.role}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">بودجه باقیمانده</span>
+              <span className="text-gray-600">بودجه باقیمانده</span>
               <span className="font-medium text-emerald-700">
                 {new Intl.NumberFormat("fa-IR").format(user.remaining_budget)} تومان
               </span>

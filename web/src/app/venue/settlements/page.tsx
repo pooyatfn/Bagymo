@@ -110,13 +110,13 @@ export default function VenueSettlementsPage() {
 
         {tab === "reservations" ? (
           bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز رزروی ندارید.</p>
           ) : (
             <div className="space-y-2">
               {bookings.map((b: any) => (
                 <div key={b.id} className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${bookingStatusColors[b.status] || "bg-gray-100 text-gray-500"}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${bookingStatusColors[b.status] || "bg-gray-100 text-gray-600"}`}>
                       {bookingStatusLabels[b.status] || b.status}
                     </span>
                     <div>
@@ -136,7 +136,7 @@ export default function VenueSettlementsPage() {
           )
         ) : (
           settlements.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز دسته تسویه‌ای ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز دسته تسویه‌ای ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">

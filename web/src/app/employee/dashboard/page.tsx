@@ -48,7 +48,7 @@ export default function EmployeeDashboard() {
 
         {/* Budget Card */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="mb-2 text-sm font-medium text-gray-500">بودجه باقیمانده</h2>
+          <h2 className="mb-2 text-sm font-medium text-gray-600">بودجه باقیمانده</h2>
           <p className="text-3xl font-bold text-emerald-700">{formatTomans(user.remaining_budget)}</p>
           <p className="mt-1 text-sm text-gray-600">
             از {formatTomans(user.annual_budget)} سالانه &middot; مصرف شده: {formatTomans(user.annual_budget - user.remaining_budget)}
@@ -71,7 +71,7 @@ export default function EmployeeDashboard() {
             <Link href="/employee/bookings" className="text-sm text-emerald-600 hover:underline">مشاهده همه</Link>
           </div>
           {bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-6 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید. باشگاه‌ها را کشف کنید.</p>
+            <p className="rounded-lg bg-white p-6 text-center text-gray-600 shadow-sm">هنوز رزروی ندارید. باشگاه‌ها را کشف کنید.</p>
           ) : (
             <div className="space-y-3">
               {bookings.slice(0, 5).map((b: any) => (
