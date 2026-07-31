@@ -1,5 +1,6 @@
 """Bookings views."""
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,11 +9,46 @@ from .models import Booking
 from .serializers import BookingSerializer, BookingCreateSerializer
 
 
+def _expire_past_bookings():
+    """Expire any bookings past their expires_at window (lightweight inline check)."""
+    now = timezone.now()
+    expired_ids = list(
+        Booking.objects.filter(
+            expires_at__lt=now,
+            status__in=[Booking.Status.RESERVED, Booking.Status.PAID],
+        ).values_list("id", flat=True)
+    )
+    if not expired_ids:
+        return
+    with transaction.atomic():
+        for bid in expired_ids:
+            booking = Booking.objects.select_for_update().get(pk=bid)
+            if booking.status not in (Booking.Status.RESERVED, Booking.Status.PAID):
+                continue
+            booking.status = Booking.Status.EXPIRED
+            booking.save(update_fields=["status"])
+            employee = booking.employee
+            employee.remaining_budget = min(
+                employee.remaining_budget + booking.price,
+                employee.annual_budget,
+            )
+            employee.save(update_fields=["remaining_budget"])
+            from billing.models import BudgetLedger
+            BudgetLedger.objects.create(
+                employee=employee,
+                amount=booking.price,
+                type=BudgetLedger.Type.REFUND,
+                reference=f"bookings:{booking.id}",
+                description=f"Booking expired: {booking.offer.name}",
+            )
+
+
 class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     queryset = Booking.objects.select_related("offer", "venue").all()
     serializer_class = BookingSerializer
 
     def get_queryset(self):
+        _expire_past_bookings()
         user = self.request.user
         if user.role == "admin":
             return Booking.objects.all()
@@ -38,13 +74,20 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
                 {"detail": f"Cannot cancel booking in '{booking.status}' status"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if booking.expires_at and booking.expires_at < timezone.now():
+            return Response(
+                {"detail": "This reservation has expired and cannot be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         booking.status = Booking.Status.CANCELLED
         booking.cancelled_at = timezone.now()
         booking.save(update_fields=["status", "cancelled_at"])
-        # refund budget
+        # refund budget (capped at annual_budget)
         from billing.models import BudgetLedger
         employee = booking.employee
-        employee.remaining_budget = employee.remaining_budget + booking.price
+        employee = type(employee).objects.select_for_update().get(pk=employee.pk)
+        new_budget = employee.remaining_budget + booking.price
+        employee.remaining_budget = min(new_budget, employee.annual_budget)
         employee.save(update_fields=["remaining_budget"])
         BudgetLedger.objects.create(
             employee=employee,
