@@ -1,19 +1,8 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
-
-const TEHRAN = { lat: 35.6892, lng: 51.3890 };
-
-const mapContainerStyle = { width: "100%", height: "100%" };
-
-const mapOptions: google.maps.MapOptions = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  streetViewControl: false,
-  mapTypeControl: false,
-  fullscreenControl: true,
-  mapId: "bagym-map",
-};
+import { useEffect, useRef, useState } from "react";
+import { MapComponent, MapTypes } from "@neshan-maps-platform/mapbox-gl-react";
+import "@neshan-maps-platform/mapbox-gl-react/dist/style.css";
+import nmp_mapboxgl from "@neshan-maps-platform/mapbox-gl";
 
 interface Venue {
   id: number;
@@ -31,85 +20,67 @@ interface Props {
 }
 
 export default function MapView({ venues, onSelect }: Props) {
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
-    language: "fa",
-    region: "IR",
-  });
-
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapRef = useRef<any>(null);
+  const markersRef: any[] = [];
   const [selected, setSelected] = useState<Venue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<google.maps.places.PlaceResult[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
-  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
-  const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-    // Init Places SearchBox
-    if (inputRef.current) {
-      searchBoxRef.current = new google.maps.places.SearchBox(inputRef.current);
-      searchBoxRef.current.addListener("places_changed", () => {
-        const places = searchBoxRef.current?.getPlaces();
-        if (places && places.length > 0) {
-          setSearchResults(places);
-          // Pan to first result
-          const loc = places[0].geometry?.location;
-          if (loc) map.panTo(loc);
-        }
-      });
-    }
-  }, []);
+  const MAP_KEY = process.env.NEXT_PUBLIC_NESHAN_API_KEY || "";
 
-  const fitBounds = useCallback((map: google.maps.Map, vens: Venue[]) => {
-    const valid = vens.filter((v) => v.lat && v.lng);
-    if (valid.length === 0) return;
-    if (valid.length === 1) {
-      map.setCenter({ lat: valid[0].lat!, lng: valid[0].lng! });
-      map.setZoom(14);
-    } else {
-      const bounds = new google.maps.LatLngBounds();
-      valid.forEach((v) => bounds.extend({ lat: v.lat!, lng: v.lng! }));
-      map.fitBounds(bounds, 60);
-    }
-  }, []);
-
-  const searchNearby = (type: string) => {
+  // Add markers when venues change
+  useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const service = new google.maps.places.PlacesService(map);
-    service.nearbySearch(
-      { location: map.getCenter(), radius: 5000, type },
-      (results, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-          setSearchResults(results);
-        }
-      }
-    );
+    // Clear old markers
+    markersRef.forEach((m) => m.remove());
+    markersRef.length = 0;
+    venues.forEach((v) => {
+      if (!v.lat || !v.lng) return;
+      const el = document.createElement("div");
+      el.style.cssText = "width:32px;height:32px;background:emerald-500;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;";
+      const inner = document.createElement("div");
+      inner.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:bold;";
+      inner.textContent = "G";
+      el.appendChild(inner);
+
+      const marker = new nmp_mapboxgl.Marker({ element: el })
+        .setLngLat([v.lng, v.lat])
+        .addTo(map);
+      marker.getElement().addEventListener("click", () => setSelected(v));
+      markersRef.push(marker);
+    });
+  }, [venues]);
+
+  const searchNearby = (type: string) => {
+    // Neshan POI search via their API
+    const map = mapRef.current;
+    if (!map) return;
+    const center = map.getCenter();
+    fetch(`https://api.neshan.net/v2/poi?lat=${center.lat}&lng=${center.lng}&type=${type}`, {
+      headers: { "Api-Key": MAP_KEY },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.items) setSearchResults(data.items);
+      })
+      .catch(() => {});
   };
 
-  if (loadError) {
+  if (!MAP_KEY) {
     return (
-      <div className="flex h-full items-center justify-center bg-gray-100 text-red-500">
-        خطا در بارگذاری نقشه. کلید API را بررسی کنید.
+      <div className="flex h-full items-center justify-center bg-gray-100 text-gray-500 text-center p-8">
+        <div>
+          <p className="text-lg font-semibold mb-2">کلید API نشان تنظیم نشده</p>
+          <p className="text-sm text-gray-400 mb-4">
+            از <a href="https://platform.neshan.org/panel/api-key" target="_blank" className="text-emerald-600 underline">پلتفرم نشان</a> کلید دریافت کنید
+          </p>
+          <code className="text-xs bg-gray-200 px-2 py-1 rounded">NEXT_PUBLIC_NESHAN_API_KEY=...</code>
+        </div>
       </div>
     );
   }
-
-  if (!isLoaded) {
-    return (
-      <div className="flex h-full items-center justify-center bg-gray-100 text-gray-400">
-        در حال بارگذاری نقشه...
-      </div>
-    );
-  }
-
-  const validVenues = venues.filter((v) => v.lat && v.lng);
-  const center = validVenues.length > 0
-    ? { lat: validVenues[0].lat!, lng: validVenues[0].lng! }
-    : TEHRAN;
 
   return (
     <div className="relative h-full w-full">
@@ -123,7 +94,6 @@ export default function MapView({ venues, onSelect }: Props) {
               </svg>
             </span>
             <input
-              ref={inputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -131,7 +101,7 @@ export default function MapView({ venues, onSelect }: Props) {
               className="w-full px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none"
             />
             <button
-              onClick={() => setShowSearch(!showSearch)}
+              onClick={() => setShowFilters(!showFilters)}
               className="px-3 text-gray-400 hover:text-gray-600"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,13 +111,14 @@ export default function MapView({ venues, onSelect }: Props) {
           </div>
 
           {/* Quick Filters */}
-          {showSearch && (
-            <div className="flex gap-2 p-3">
+          {showFilters && (
+            <div className="flex gap-2 p-3 flex-wrap">
               {[
                 { label: "باشگاه", type: "gym" },
-                { label: "استخر", type: "swimming_pool" },
-                { label: "سینما", type: "movie_theater" },
+                { label: "استخر", type: "pool" },
+                { label: "سینما", type: "cinema" },
                 { label: "یوگا", type: "yoga" },
+                { label: "ورزشگاه", type: "sport" },
               ].map((f) => (
                 <button
                   key={f.type}
@@ -163,22 +134,21 @@ export default function MapView({ venues, onSelect }: Props) {
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="max-h-48 overflow-y-auto border-t border-gray-100">
-              {searchResults.slice(0, 5).map((r, i) => (
+              {searchResults.slice(0, 5).map((r: any, i: number) => (
                 <button
                   key={i}
                   onClick={() => {
-                    if (r.geometry?.location) {
-                      mapRef.current?.panTo(r.geometry.location);
-                      mapRef.current?.setZoom(15);
+                    if (r.location) {
+                      mapRef.current?.flyTo({ center: [r.location.x, r.location.y], zoom: 15 });
                     }
                     setSearchResults([]);
-                    setSearchQuery(r.name || "");
+                    setSearchQuery(r.title || r.name || "");
                   }}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-right hover:bg-gray-50"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{r.name}</p>
-                    <p className="text-xs text-gray-500">{r.vicinity}</p>
+                    <p className="text-sm font-medium text-gray-900">{r.title || r.name}</p>
+                    <p className="text-xs text-gray-500">{r.address || r.category}</p>
                   </div>
                 </button>
               ))}
@@ -187,44 +157,41 @@ export default function MapView({ venues, onSelect }: Props) {
         </div>
       </div>
 
-      {/* Map */}
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={center}
-        zoom={12}
-        options={mapOptions}
-        onLoad={(map) => {
-          onMapLoad(map);
-          if (validVenues.length > 0) fitBounds(map, validVenues);
-        }}
-      >
-        {validVenues.map((v) => (
-          <Marker
-            key={v.id}
-            position={{ lat: v.lat!, lng: v.lng! }}
-            onClick={() => setSelected(v)}
-            title={v.name}
-          />
-        ))}
+      {/* Neshan Map */}
+      <div className="h-full w-full">
+        <MapComponent
+          options={{
+            mapKey: MAP_KEY,
+            mapType: MapTypes.neshanVector,
+            center: [51.389, 35.6892], // Tehran
+            zoom: 12,
+            poi: false,
+            traffic: false,
+          }}
+          mapSetter={(map: any) => { mapRef.current = map; }}
+          style={{ width: "100%", height: "100%" }}
+        />
+      </div>
 
-        {selected && selected.lat && selected.lng && (
-          <InfoWindow
-            position={{ lat: selected.lat, lng: selected.lng }}
-            onCloseClick={() => setSelected(null)}
-          >
-            <div className="text-right p-1 min-w-[160px]" dir="rtl">
-              <p className="font-semibold text-gray-900 text-sm">{selected.name}</p>
-              <p className="text-xs text-gray-500">{selected.category_name} &middot; {selected.district}</p>
-              <button
-                onClick={() => onSelect(selected)}
-                className="mt-2 w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-              >
-                مشاهده آفرها
-              </button>
+      {/* Selected Venue Popup */}
+      {selected && selected.lat && selected.lng && (
+        <div className="absolute bottom-4 left-4 right-4 z-10">
+          <div className="rounded-xl bg-white p-4 shadow-xl" dir="rtl">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-900">{selected.name}</h3>
+              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
+            <p className="text-sm text-gray-500 mb-1">{selected.category_name} &middot; {selected.district}</p>
+            {selected.address && <p className="text-xs text-gray-400 mb-3">{selected.address}</p>}
+            <button
+              onClick={() => onSelect(selected)}
+              className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              مشاهده آفرها
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
