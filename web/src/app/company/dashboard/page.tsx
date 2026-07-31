@@ -53,6 +53,7 @@ export default function CompanyDashboard() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
           <span className="text-lg font-bold text-emerald-700">باجیمو — مدیر شرکت</span>
           <div className="flex items-center gap-4">
+            <a href="/company/analytics" className="text-sm text-emerald-600 hover:underline">گزارش و تحلیل</a>
             <a href="/company/invoices" className="text-sm text-emerald-600 hover:underline">فاکتورها</a>
             <span className="text-sm text-gray-600">{user.name}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>

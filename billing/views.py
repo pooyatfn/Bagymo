@@ -1,4 +1,7 @@
 """Billing API URLs (monthly invoices + venue self-settlement view)."""
+from django.db.models import Sum, Count, Q
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -55,3 +58,52 @@ def company_bookings(request):
          "cancelled_at": b.cancelled_at}
         for b in qs.order_by("-reserved_at")[:100]
     ])
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def company_analytics(request):
+    """Company analytics: totals, top employees, venue breakdown."""
+    user = request.user
+    if user.role not in ("admin", "company_admin"):
+        return Response({"detail": "Not allowed"}, status=403)
+
+    qs = Booking.objects.select_related("offer", "venue", "employee").filter(status="checkedin")
+    if user.role == "company_admin":
+        qs = qs.filter(company=user.company)
+
+    total_bookings = qs.count()
+    total_spend = qs.aggregate(total=Sum("price"))["total"] or 0
+    total_commission = qs.aggregate(total=Sum("employee_commission"))["total"] or 0
+
+    # top employees by booking count
+    top_employees = list(
+        qs.values("employee__name", "employee__phone_number")
+        .annotate(bookings=Count("id"), total_spent=Sum("price"))
+        .order_by("-bookings")[:10]
+    )
+
+    # venue breakdown
+    venue_breakdown = list(
+        qs.values("venue__name")
+        .annotate(bookings=Count("id"), total_spent=Sum("price"))
+        .order_by("-bookings")[:10]
+    )
+
+    # last 30 days trend
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    daily = list(
+        qs.filter(reserved_at__gte=thirty_days_ago)
+        .values("reserved_at__date")
+        .annotate(bookings=Count("id"), total_spent=Sum("price"))
+        .order_by("reserved_at__date")
+    )
+
+    return Response({
+        "total_bookings": total_bookings,
+        "total_spend": total_spend,
+        "total_commission": total_commission,
+        "top_employees": top_employees,
+        "venue_breakdown": venue_breakdown,
+        "daily_trend": daily,
+    })
