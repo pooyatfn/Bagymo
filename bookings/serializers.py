@@ -28,9 +28,11 @@ class BookingCreateSerializer(serializers.Serializer):
 class BookingSerializer(serializers.ModelSerializer):
     offer_name = serializers.CharField(source="offer.name", read_only=True)
     venue_name = serializers.CharField(source="venue.name", read_only=True)
+    duration_minutes = serializers.IntegerField(source="offer.duration_minutes", read_only=True)
 
     class Meta:
         model = Booking
         fields = ("id", "venue_name", "offer_name", "price", "employee_commission",
-                  "venue_net_payout", "status", "check_in_code", "reserved_at", "expires_at")
+                  "venue_net_payout", "status", "check_in_code", "reserved_at", "expires_at",
+                  "checked_in_at", "cancelled_at", "duration_minutes")
         read_only_fields = fields

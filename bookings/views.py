@@ -33,7 +33,7 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
         user = request.user
         if booking.employee != user and user.role not in ("admin", "company_admin"):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
-        if booking.status not in (Booking.Status.RESERVED,):
+        if booking.status not in (Booking.Status.RESERVED, Booking.Status.PAID):
             return Response(
                 {"detail": f"Cannot cancel booking in '{booking.status}' status"},
                 status=status.HTTP_400_BAD_REQUEST,
