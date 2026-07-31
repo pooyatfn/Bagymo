@@ -205,7 +205,16 @@ export default function DiscoverPage() {
                   <p className="mb-1 font-semibold text-gray-900">{selectedOffer.name}</p>
                   <p className="mb-3 text-sm text-gray-600">{selectedOffer.duration_minutes} دقیقه &middot; {formatTomans(selectedOffer.price)}</p>
                   {timeslots.length === 0 ? (
-                    <p className="py-6 text-center text-gray-600">زمان رزرو موجود نیست.</p>
+                    <div className="text-center py-6">
+                      <p className="text-gray-600 mb-3">زمان رزرو موجود نیست.</p>
+                      <button
+                        onClick={handleBook}
+                        disabled={booking !== null}
+                        className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {booking ? "در حال رزرو..." : "رزرو بدون انتخاب زمان"}
+                      </button>
+                    </div>
                   ) : (
                     <>
                       <p className="mb-2 text-xs font-medium text-gray-600">زمان مورد نظر را انتخاب کنید:</p>

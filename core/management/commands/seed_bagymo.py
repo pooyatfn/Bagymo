@@ -4,14 +4,14 @@ Creates: 1 company, 3 employees, 10 offers across 3 gyms, 1 venue staff,
 and runs a demo booking to verify the commission math.
 Run:  python manage.py seed_bagymo
 """
-from datetime import date
+from datetime import date, timedelta, time
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.models import User
-from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot
+from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot, TimeSlot
 from billing.services import reserve_booking
 
 
@@ -118,6 +118,18 @@ class Command(BaseCommand):
                     start_time=slot["start"], end_time=slot["end"],
                     defaults={"gender": slot["gender"]},
                 )
+            # create timeslots for next 7 days
+            today = date.today()
+            for d in range(7):
+                slot_date = today + timedelta(days=d)
+                for start_h in [8, 10, 14, 16, 18]:
+                    end_h = start_h + 2
+                    for offer in Offer.objects.filter(venue=venue, is_active=True):
+                        TimeSlot.objects.get_or_create(
+                            offer=offer, date=slot_date,
+                            start_time=time(start_h, 0), end_time=time(min(end_h, 22), 0),
+                            defaults={"capacity": 10, "is_active": True},
+                        )
 
         # venue staff
         v = Venue.objects.first()
