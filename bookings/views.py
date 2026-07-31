@@ -43,17 +43,14 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
         booking.save(update_fields=["status", "cancelled_at"])
         # refund budget
         from billing.models import BudgetLedger
-        from django.conf import settings
         employee = booking.employee
         employee.remaining_budget = employee.remaining_budget + booking.price
         employee.save(update_fields=["remaining_budget"])
         BudgetLedger.objects.create(
             employee=employee,
-            booking=booking,
-            company=employee.company,
-            type="debit",
-            amount=-booking.price,
-            balance_after=employee.remaining_budget,
+            amount=booking.price,
+            type=BudgetLedger.Type.REFUND,
+            reference=f"bookings:{booking.id}",
             description=f"Booking cancelled: {booking.offer.name}",
         )
         # send cancellation SMS
