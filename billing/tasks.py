@@ -4,7 +4,8 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import SettlementBatch, Invoice, BudgetLedger, Booking
+from .models import SettlementBatch, Invoice, BudgetLedger
+from bookings.models import Booking
 from bookings.models import Booking  # noqa: F811
 from catalog.models import Company
 

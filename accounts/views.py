@@ -7,7 +7,7 @@ import random
 from django.core.cache import cache
 from django.conf import settings
 
-from rest_framework import status, generics
+from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +21,7 @@ OTP_TTL_SECONDS = 300
 
 class OTPRequestView(generics.GenericAPIView):
     serializer_class = OTPRequestSerializer
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
@@ -29,9 +30,9 @@ class OTPRequestView(generics.GenericAPIView):
         code = f"{random.randint(10000, 99999)}"
         cache.set(f"otp:{phone}", code, timeout=OTP_TTL_SECONDS)
 
-        # In dev without gateway key, print code
+        # In dev without gateway key, print code (flush for reliable capture)
         if not settings.KAVENEGAR_API_KEY:
-            print(f"[OTP] dev code for {phone}: {code}")
+            print(f"[OTP] dev code for {phone}: {code}", flush=True)
             return Response({"detail": "OTP sent (dev code printed)."}, status=status.HTTP_200_OK)
 
         try:
@@ -51,10 +52,10 @@ class OTPRequestView(generics.GenericAPIView):
 
 
 class OTPVerifyView(APIView):
-    serializer_class = OTPVerifySerializer
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        ser = self.get_serializer(data=request.data)
+        ser = OTPVerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         phone = ser.validated_data["phone_number"]
         code = ser.validated_data["code"]
