@@ -37,7 +37,7 @@ export default function LoginPage() {
         company_admin: "/company/dashboard",
         company_hr: "/company/dashboard",
         venue_staff: "/venue/dashboard",
-        admin: "/company/dashboard",
+        admin: "/admin",
       };
       router.push(paths[role || "employee"] || "/employee/dashboard");
     } catch {

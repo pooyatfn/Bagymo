@@ -15,7 +15,7 @@ export default function Home() {
         company_admin: "/company/dashboard",
         company_hr: "/company/dashboard",
         venue_staff: "/venue/dashboard",
-        admin: "/company/dashboard",
+        admin: "/admin",
       };
       router.push(paths[user.role] || "/login");
     } else {

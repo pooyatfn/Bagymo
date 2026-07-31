@@ -39,6 +39,9 @@ export default function EmployeeDashboard() {
             <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline">
               رزروهای من
             </Link>
+            <Link href="/profile" className="text-sm text-gray-500 hover:underline">
+              پروفایل
+            </Link>
             <span className="text-sm text-gray-500">{user.phone_number}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">
               خروج

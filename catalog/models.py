@@ -71,8 +71,8 @@ class Venue(models.Model):
     owner_name = models.CharField(max_length=80, null=True, blank=True)
     phone = models.CharField(max_length=32, null=True, blank=True)
     address = models.CharField(max_length=300, null=True, blank=True)
-    # location stored as lat/lng so the project runs on plain Postgres/sqlite;
-    # swap to a PostGIS PointField for production geo queries.
+    district = models.CharField(max_length=80, null=True, blank=True)
+    city = models.CharField(max_length=80, default="Tehran")
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)

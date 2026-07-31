@@ -18,9 +18,9 @@ from billing.services import reserve_booking
 
 GOOGLE_FIX = Venue.GenderPolicy.MIXED
 SAMPLE_GYMS = [
-    {"name": "Flex Gym Tehran", "address": "Valiasr St, Tehran", "lat": 35.6892, "lng": 51.3890, "phone": "021-91000001"},
-    {"name": "Champion Fitness", "address": "Niavaran, Tehran", "lat": 35.8123, "lng": 51.4478, "phone": "021-91000002"},
-    {"name": "BodySpace Arena", "address": "Mirdamad, Tehran", "lat": 35.7664, "lng": 51.4121, "phone": "021-91000003"},
+    {"name": "Flex Gym Tehran", "address": "Valiasr St, Tehran", "lat": 35.6892, "lng": 51.3890, "phone": "021-91000001", "district": " مرکزی", "city": "Tehran"},
+    {"name": "Champion Fitness", "address": "Niavaran, Tehran", "lat": 35.8123, "lng": 51.4478, "phone": "021-91000002", "district": "شمال", "city": "Tehran"},
+    {"name": "BodySpace Arena", "address": "Mirdamad, Tehran", "lat": 35.7664, "lng": 51.4121, "phone": "021-91000003", "district": "میرداماد", "city": "Tehran"},
 ]
 OFFERS = [
     ("1h gym access", 500_000, 60),
@@ -65,6 +65,7 @@ class Command(BaseCommand):
                 venue = Venue.objects.create(
                     name=gm["name"], category=cat, address=gm["address"],
                     lat=gm["lat"], lng=gm["lng"], phone=gm["phone"],
+                    district=gm["district"], city=gm["city"],
                     status=Venue.Status.ACTIVE, is_verified=True, gender_policy=GOOGLE_FIX
                 )
             for oname, price, dur in OFFERS:

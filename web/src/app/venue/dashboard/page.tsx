@@ -68,6 +68,8 @@ export default function VenueDashboard() {
           <span className="text-lg font-bold text-emerald-700">باجم — کارمند باشگاه</span>
           <div className="flex items-center gap-4">
             <a href="/venue/settlements" className="text-sm text-emerald-600 hover:underline hidden sm:inline">تسویه‌حساب</a>
+            <a href="/venue/offers" className="text-sm text-emerald-600 hover:underline hidden sm:inline">آفرها</a>
+            <a href="/venue/register" className="text-sm text-gray-500 hover:underline hidden sm:inline">ثبت باشگاه</a>
             <span className="text-sm text-gray-500">{user.name}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>

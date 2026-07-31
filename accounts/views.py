@@ -11,7 +11,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import OTPRequestSerializer, OTPVerifySerializer, UserSerializer
+from .serializers import OTPRequestSerializer, OTPVerifySerializer, UserSerializer, ProfileUpdateSerializer
 from .models import User
 from .tokens import issue_tokens
 
@@ -79,3 +79,16 @@ class OTPVerifyView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        ser = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(UserSerializer(request.user).data)

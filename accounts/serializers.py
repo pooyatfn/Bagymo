@@ -22,5 +22,14 @@ class UserSerializer(serializers.ModelSerializer):
             "is_verified",
             "remaining_budget",
             "annual_budget",
+            "sheba",
+            "company",
+            "created_at",
         ]
-        read_only_fields = ["id", "role", "is_verified", "remaining_budget", "annual_budget"]
+        read_only_fields = ["id", "phone_number", "role", "is_verified", "remaining_budget", "annual_budget", "company", "created_at"]
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["name", "sheba"]
