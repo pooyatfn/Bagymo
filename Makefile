@@ -1,4 +1,4 @@
-# bagym.ir - developer Makefile
+# bagymo.ir - developer Makefile
 ENV ?= . .venv/bin/activate
 PY ?= $(CURDIR)/venv/bin/python
 WEB := $(CURDIR)/web
@@ -27,7 +27,7 @@ migrate:
 
 seed:
 	$(PY) manage.py migrate
-	$(PY) manage.py seed_bagym
+	$(PY) manage.py seed_bagymo
 
 run-dev:
 	$(PY) manage.py runserver 127.0.0.1:8000
