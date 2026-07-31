@@ -25,7 +25,7 @@ export default function VenueOffersPage() {
     api.get("/catalog/venue-offers/").then((r) => setOffers(r.data)).catch(() => {});
   };
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [user?.id]);
 
   const loadSlots = async (offerId: number) => {
     const res = await api.get(`/catalog/offer-timeslots/${offerId}/`);

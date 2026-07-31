@@ -23,7 +23,7 @@ export default function VenueSettlementsPage() {
     if (!user) return;
     api.get("/billing/venue-settlements/").then((r) => setSettlements(r.data.results || r.data)).catch(() => {});
     api.get("/bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) return null;
 

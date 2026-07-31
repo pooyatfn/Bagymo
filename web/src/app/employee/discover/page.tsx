@@ -25,7 +25,7 @@ export default function DiscoverPage() {
   useEffect(() => {
     if (!user) return;
     api.get("/catalog/venues/").then((r) => setVenues(r.data.results || r.data)).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   const loadOffers = async (venueId: number) => {
     const res = await api.get(`/catalog/venues/${venueId}/offers/`);

@@ -23,7 +23,7 @@ export default function InvoicesPage() {
     if (!user) return;
     api.get("/billing/invoices/").then((r) => setInvoices(r.data.results || r.data)).catch(() => {});
     api.get("/billing/company-bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) return null;
 

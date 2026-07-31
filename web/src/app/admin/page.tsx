@@ -25,7 +25,7 @@ export default function AdminPage() {
     api.get("/billing/company-bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
   };
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [user?.id]);
 
   const handleApprove = async (id: number) => {
     try {

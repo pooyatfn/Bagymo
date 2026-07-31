@@ -40,13 +40,14 @@ export default function BookingsPage() {
     api.get("/bookings/").then((r) => { setBookings(r.data.results || r.data); setLoading(false); }).catch(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [user?.id]);
 
   const handleCancel = async (id: number) => {
     if (!confirm("آیا از لغو این رزرو اطمینان دارید؟ بودجه بازگردانده می‌شود.")) return;
     try {
       await api.post(`/bookings/${id}/cancel/`);
-      refreshUser();
+      alert("رزرو لغو شد و بودجه بازگردانده شد.");
+      await refreshUser().catch(() => {});
       load();
     } catch (err: any) {
       alert(err.response?.data?.detail || "خطا در لغو رزرو");

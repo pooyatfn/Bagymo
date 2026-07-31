@@ -21,7 +21,7 @@ export default function ProfilePage() {
       setName(r.data.name || "");
       setSheba(r.data.sheba || "");
     }).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

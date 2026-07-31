@@ -15,10 +15,9 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    refreshUser();
     api.get("/bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
     api.get("/catalog/venues/").then((r) => setVenues((r.data.results || r.data).slice(0, 3))).catch(() => {});
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) return null;
 

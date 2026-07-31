@@ -26,7 +26,7 @@ export default function VenueDashboard() {
     }).catch(() => {});
   };
 
-  useEffect(() => { loadBookings(); }, [user]);
+  useEffect(() => { loadBookings(); }, [user?.id]);
 
   const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();

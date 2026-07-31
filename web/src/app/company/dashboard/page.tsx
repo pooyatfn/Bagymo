@@ -24,7 +24,7 @@ export default function CompanyDashboard() {
     api.get("/companies/employees/").then((r) => setEmployees(r.data.results || r.data)).catch(() => {});
   };
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [user?.id]);
 
   const handleAdjust = async (e: React.FormEvent) => {
     e.preventDefault();
