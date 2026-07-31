@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from catalog.models import Venue, Offer, Company
+from catalog.models import Venue, Offer, Company, TimeSlot
 
 
 class Booking(models.Model):
@@ -32,6 +32,7 @@ class Booking(models.Model):
     venue = models.ForeignKey(Venue, on_delete=models.PROTECT, related_name="bookings")
     offer = models.ForeignKey(Offer, on_delete=models.PROTECT, related_name="bookings")
     company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="bookings")
+    timeslot = models.ForeignKey(TimeSlot, on_delete=models.SET_NULL, null=True, blank=True, related_name="bookings")
 
     # prices at booking time (immutable snapshot)
     price = models.PositiveIntegerField()

@@ -41,6 +41,13 @@ def _expire_past_bookings():
                 reference=f"bookings:{booking.id}",
                 description=f"Booking expired: {booking.offer.name}",
             )
+            # restore timeslot capacity
+            if booking.timeslot:
+                from django.db.models import F
+                from catalog.models import TimeSlot
+                TimeSlot.objects.filter(pk=booking.timeslot_id).update(
+                    booked_count=F("booked_count") - 1
+                )
 
 
 class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
@@ -99,6 +106,13 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
         # send cancellation SMS
         from core.sms import send_booking_cancellation
         send_booking_cancellation(employee.phone_number, booking.venue.name, booking.price)
+        # restore timeslot capacity
+        if booking.timeslot:
+            from django.db.models import F
+            from catalog.models import TimeSlot
+            TimeSlot.objects.filter(pk=booking.timeslot_id).update(
+                booked_count=F("booked_count") - 1
+            )
 
         return Response({"ok": True, "detail": "Booking cancelled, budget refunded"})
 

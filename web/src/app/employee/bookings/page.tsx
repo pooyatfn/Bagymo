@@ -117,6 +117,9 @@ export default function BookingsPage() {
                     </div>
                     <p className="font-medium text-gray-900">{b.offer_name || `رزرو #${b.id}`}</p>
                     <p className="text-sm text-gray-500">{b.venue_name}</p>
+                    {b.timeslot_date && (
+                      <p className="text-xs text-emerald-600 font-medium">{b.timeslot_date} &middot; {b.timeslot_start?.slice(0,5)} - {b.timeslot_end?.slice(0,5)}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 sm:text-right">
                     <div>
@@ -137,8 +140,14 @@ export default function BookingsPage() {
                 {/* Expanded details */}
                 {expanded === b.id && (
                   <div className="mt-4 border-t border-gray-100 pt-4 space-y-2 text-sm">
+                    {b.timeslot_date && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">زمان رزرو</span>
+                        <span className="text-gray-900 font-medium">{b.timeslot_date} &middot; {b.timeslot_start?.slice(0,5)} - {b.timeslot_end?.slice(0,5)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
-                      <span className="text-gray-500">زمان رزرو</span>
+                      <span className="text-gray-500">تاریخ ثبت</span>
                       <span className="text-gray-900">{formatDateTime(b.reserved_at)}</span>
                     </div>
                     {b.expires_at && (b.status === "reserved" || b.status === "paid") && (

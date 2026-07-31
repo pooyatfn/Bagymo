@@ -11,7 +11,7 @@ Formulas (locked business model):
 """
 from decimal import ROUND_HALF_UP, Decimal
 from django.conf import settings
-from django.db import transaction
+from django.db import models as django_models, transaction
 from django.utils import timezone
 from django.core.cache import cache
 
@@ -54,7 +54,7 @@ def _generate_checkin_code():
     return secrets.token_urlsafe(6).upper().replace("-", "")[:10]
 
 
-def reserve_booking(employee, offer):
+def reserve_booking(employee, offer, timeslot=None):
     """
     Atomically create a Booking + debit employee budget.
     Raises InsufficientBudget, GeoError, etc.
@@ -109,6 +109,7 @@ def reserve_booking(employee, offer):
             venue=offer.venue,
             offer=offer,
             company=employee.company,
+            timeslot=timeslot,
             price=offer.price,
             employee_commission=split["employee_commission"],
             venue_gross_payout=split["venue_gross_payout"],
@@ -119,6 +120,12 @@ def reserve_booking(employee, offer):
             expires_at=expires_at,
             check_in_code=_generate_checkin_code(),
         )
+        # decrement timeslot capacity
+        if timeslot:
+            from catalog.models import TimeSlot
+            TimeSlot.objects.filter(pk=timeslot.pk).update(
+                booked_count=django_models.F("booked_count") + 1
+            )
         # cache the code→booking for fast staff verify (QR/scanner)
         cache.set(f"checkin:{booking.check_in_code}", booking.id, timeout=ttl_minutes * 120)
 

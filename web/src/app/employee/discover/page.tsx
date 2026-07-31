@@ -18,6 +18,9 @@ export default function DiscoverPage() {
   const [venues, setVenues] = useState<any[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [timeslots, setTimeslots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [booking, setBooking] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "map">("list");
@@ -32,16 +35,32 @@ export default function DiscoverPage() {
     setOffers(res.data);
   };
 
-  const handleBook = async (offerId: number) => {
-    setBooking(offerId);
+  const loadTimeslots = async (offerId: number) => {
+    const res = await api.get(`/catalog/offers/${offerId}/timeslots/`);
+    setTimeslots(res.data);
+  };
+
+  const handleSelectOffer = async (offer: any) => {
+    setSelectedOffer(offer);
+    setSelectedSlot(null);
+    await loadTimeslots(offer.id);
+  };
+
+  const handleBook = async () => {
+    if (!selectedOffer) return;
+    setBooking(selectedOffer.id);
     try {
-      const res = await api.post("/bookings/", { offer_id: offerId });
+      const payload: any = { offer_id: selectedOffer.id };
+      if (selectedSlot) payload.timeslot_id = selectedSlot;
+      const res = await api.post("/bookings/", payload);
       alert(`رزرو شد! کد ورود: ${res.data.check_in_code}`);
       setBooking(null);
+      setSelectedOffer(null);
+      setSelectedSlot(null);
       setSelectedVenue(null);
       refreshUser();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "خطا در رزرو");
+      alert(err.response?.data?.detail || err.response?.data?.timeslot_id?.[0] || "خطا در رزرو");
       setBooking(null);
     }
   };
@@ -136,11 +155,11 @@ export default function DiscoverPage() {
 
         {/* Offer Modal */}
         {selectedVenue && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelectedVenue(null)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }}>
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{selectedVenue.name}</h2>
-                <button onClick={() => setSelectedVenue(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                <button onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
               </div>
               <p className="mb-1 text-sm text-gray-500">{selectedVenue.district} &middot; {selectedVenue.city}</p>
               {selectedVenue.address && <p className="mb-3 text-sm text-gray-400">{selectedVenue.address}</p>}
@@ -179,29 +198,75 @@ export default function DiscoverPage() {
                 </div>
               )}
 
-              {offers.length === 0 ? (
-                <p className="py-8 text-center text-gray-400">آفری موجود نیست.</p>
-              ) : (
-                <div className="space-y-3">
-                  {offers.map((o: any) => (
-                    <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{o.name}</p>
-                        <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.session_type || o.gender_restriction}</p>
+              {selectedOffer ? (
+                /* Timeslot selection */
+                <div>
+                  <button onClick={() => { setSelectedOffer(null); setTimeslots([]); }} className="mb-3 text-sm text-emerald-600 hover:underline">بازگشت به لیست آفرها</button>
+                  <p className="mb-1 font-semibold text-gray-900">{selectedOffer.name}</p>
+                  <p className="mb-3 text-sm text-gray-500">{selectedOffer.duration_minutes} دقیقه &middot; {formatTomans(selectedOffer.price)}</p>
+                  {timeslots.length === 0 ? (
+                    <p className="py-6 text-center text-gray-400">زمان رزرو موجود نیست.</p>
+                  ) : (
+                    <>
+                      <p className="mb-2 text-xs font-medium text-gray-600">زمان مورد نظر را انتخاب کنید:</p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {timeslots.map((s: any) => (
+                          <button
+                            key={s.id}
+                            onClick={() => setSelectedSlot(s.id === selectedSlot ? null : s.id)}
+                            disabled={!s.is_available}
+                            className={`w-full rounded-lg border p-3 text-right text-sm transition ${
+                              !s.is_available ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                              : s.id === selectedSlot ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
+                              : "border-gray-200 hover:border-emerald-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{s.date} &middot; {s.start_time?.slice(0,5)} - {s.end_time?.slice(0,5)}</span>
+                              {s.is_available ? (
+                                <span className="text-xs text-emerald-600">{s.remaining > 0 ? `${s.remaining} ظرفیت` : "موجود"}</span>
+                              ) : (
+                                <span className="text-xs text-red-400">تکمیل</span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                      <div className="text-right shrink-0 ml-4">
-                        <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
-                        <button
-                          onClick={() => handleBook(o.id)}
-                          disabled={booking === o.id}
-                          className="mt-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                          {booking === o.id ? "در حال رزرو..." : "رزرو"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      <button
+                        onClick={handleBook}
+                        disabled={booking !== null}
+                        className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {booking ? "در حال رزرو..." : "رزرو"}
+                      </button>
+                    </>
+                  )}
                 </div>
+              ) : (
+                /* Offer list */
+                offers.length === 0 ? (
+                  <p className="py-8 text-center text-gray-400">آفری موجود نیست.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {offers.map((o: any) => (
+                      <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{o.name}</p>
+                          <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "مردانه" : o.gender_restriction === "female" ? "زنانه" : "مختلط"}</p>
+                        </div>
+                        <div className="text-right shrink-0 ml-4">
+                          <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
+                          <button
+                            onClick={() => handleSelectOffer(o)}
+                            className="mt-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                          >
+                            انتخاب
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           </div>
