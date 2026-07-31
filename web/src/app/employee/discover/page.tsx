@@ -13,7 +13,7 @@ function formatTomans(n: number) {
 }
 
 export default function DiscoverPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const router = useRouter();
   const [venues, setVenues] = useState<any[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
@@ -39,6 +39,7 @@ export default function DiscoverPage() {
       alert(`رزرو شد! کد ورود: ${res.data.check_in_code}`);
       setBooking(null);
       setSelectedVenue(null);
+      refreshUser();
     } catch (err: any) {
       alert(err.response?.data?.detail || "خطا در رزرو");
       setBooking(null);

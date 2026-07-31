@@ -9,6 +9,7 @@ interface User {
   role: string;
   remaining_budget: number;
   annual_budget: number;
+  sheba?: string;
 }
 
 interface AuthCtx {
@@ -17,6 +18,7 @@ interface AuthCtx {
   login: (phone: string) => Promise<void>;
   verify: (phone: string, code: string) => Promise<{ created: boolean }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx>(null!);
@@ -26,16 +28,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("access");
+      if (!token) { setUser(null); return; }
+      const res = await api.get("/auth/profile/");
+      localStorage.setItem("user", JSON.stringify(res.data));
+      setUser(res.data);
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
   const fetchUser = useCallback(async () => {
     try {
-      // use the stored access token to get user info
       const token = localStorage.getItem("access");
       if (!token) { setUser(null); setLoading(false); return; }
-      // The user data is embedded in the login response; re-fetch from /auth/token/ if needed
-      // For now, re-login via stored token is not an endpoint. We store user in localStorage too.
-      const raw = localStorage.getItem("user");
-      if (raw) setUser(JSON.parse(raw));
-      else setUser(null);
+      // try API first, fall back to localStorage
+      try {
+        const res = await api.get("/auth/profile/");
+        localStorage.setItem("user", JSON.stringify(res.data));
+        setUser(res.data);
+      } catch {
+        const raw = localStorage.getItem("user");
+        if (raw) setUser(JSON.parse(raw));
+        else setUser(null);
+      }
     } catch { setUser(null); }
     setLoading(false);
   }, []);
@@ -66,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verify, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verify, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

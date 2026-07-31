@@ -10,13 +10,14 @@ function formatTomans(n: number) {
 }
 
 export default function EmployeeDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<any[]>([]);
   const [venues, setVenues] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
+    refreshUser();
     api.get("/bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
     api.get("/catalog/venues/").then((r) => setVenues((r.data.results || r.data).slice(0, 3))).catch(() => {});
   }, [user]);
