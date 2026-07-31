@@ -92,6 +92,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Venue / payout info
     sheba = models.CharField(max_length=26, null=True, blank=True)
 
+    # Employee gender (for venue gender-policy filtering)
+    class Gender:
+        MALE = "male"
+        FEMALE = "female"
+        CHOICES = [
+            (MALE, "Male"),
+            (FEMALE, "Female"),
+        ]
+
+    gender = models.CharField(max_length=8, choices=Gender.CHOICES, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

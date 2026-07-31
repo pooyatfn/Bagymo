@@ -48,9 +48,16 @@ export default function DiscoverPage() {
 
   if (!user) return null;
 
-  const filtered = venues.filter((v: any) =>
-    !search || v.name?.includes(search) || v.district?.includes(search)
-  );
+  const userGender = (user as any).gender;
+
+  const filtered = venues.filter((v: any) => {
+    const matchesSearch = !search || v.name?.includes(search) || v.district?.includes(search);
+    if (!matchesSearch) return false;
+    if (!userGender) return v.gender_policy === "mixed";
+    if (userGender === "male") return v.gender_policy === "mixed" || v.gender_policy === "male";
+    if (userGender === "female") return v.gender_policy === "mixed" || v.gender_policy === "female";
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -110,7 +117,11 @@ export default function DiscoverPage() {
             >
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900 truncate">{v.name}</h3>
-                <span className="ml-2 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{v.category_name}</span>
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{v.category_name}</span>
+                  {v.gender_policy === "male" && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">مردانه</span>}
+                  {v.gender_policy === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">زنانه</span>}
+                </div>
               </div>
               <p className="text-sm text-gray-500">{v.district} &middot; {v.city}</p>
               {v.address && <p className="mt-1 text-xs text-gray-400 truncate">{v.address}</p>}

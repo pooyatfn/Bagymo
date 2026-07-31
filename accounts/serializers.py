@@ -19,6 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number",
             "name",
             "role",
+            "gender",
             "is_verified",
             "remaining_budget",
             "annual_budget",
@@ -32,4 +33,4 @@ class UserSerializer(serializers.ModelSerializer):
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["name", "sheba"]
+        fields = ["name", "sheba", "gender"]

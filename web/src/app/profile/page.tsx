@@ -10,6 +10,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [sheba, setSheba] = useState("");
+  const [gender, setGender] = useState("");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -17,9 +18,11 @@ export default function ProfilePage() {
     if (!user) return;
     setName(user.name || "");
     setSheba((user as any).sheba || "");
+    setGender((user as any).gender || "");
     api.get("/auth/profile/").then((r) => {
       setName(r.data.name || "");
       setSheba(r.data.sheba || "");
+      setGender(r.data.gender || "");
     }).catch(() => {});
   }, [user?.id]);
 
@@ -28,7 +31,7 @@ export default function ProfilePage() {
     setLoading(true);
     setSaved(false);
     try {
-      await api.patch("/auth/profile/", { name, sheba });
+      await api.patch("/auth/profile/", { name, sheba, gender: gender || null });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
@@ -104,6 +107,19 @@ export default function ProfilePage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
               />
               <p className="mt-1 text-xs text-gray-400">برای دریافت وجه در صورت لغو رزرو</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">جنسیت</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+              >
+                <option value="">انتخاب کنید</option>
+                <option value="male">مرد</option>
+                <option value="female">زن</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-400">برای نمایش باشگاه‌های مناسب جنسیت شما</p>
             </div>
 
             <div className="flex items-center gap-3">
