@@ -154,7 +154,7 @@ export default function VenueOffersPage() {
                 <div className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
                   <div>
                     <p className="font-medium text-gray-900">{o.name}</p>
-                    <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "mixed" ? "مختلط" : o.gender_restriction === "male" ? "آقایان" : "خانم‌ها"}</p>
+                    <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "آقایان" : o.gender_restriction === "female" ? "بانوان" : ""}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>

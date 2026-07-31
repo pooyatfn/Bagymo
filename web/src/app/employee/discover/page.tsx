@@ -36,7 +36,7 @@ export default function DiscoverPage() {
   };
 
   const loadTimeslots = async (offerId: number) => {
-    const res = await api.get(`/catalog/offers/${offerId}/timeslots/`);
+    const res = await api.get(`/catalog/offer-timeslots/${offerId}/`);
     setTimeslots(res.data);
   };
 
@@ -73,7 +73,7 @@ export default function DiscoverPage() {
     const matchesSearch = !search || v.name?.includes(search) || v.district?.includes(search);
     if (!matchesSearch) return false;
     const currentGender = v.gender_for_now || v.gender_policy;
-    if (!userGender) return currentGender === "mixed";
+    if (!userGender) return true;
     if (userGender === "male") return currentGender === "mixed" || currentGender === "male";
     if (userGender === "female") return currentGender === "mixed" || currentGender === "female";
     return true;
@@ -139,8 +139,8 @@ export default function DiscoverPage() {
                 <h3 className="font-semibold text-gray-900 truncate">{v.name}</h3>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{v.category_name}</span>
-                  {(v.gender_for_now || v.gender_policy) === "male" && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">مردانه</span>}
-                  {(v.gender_for_now || v.gender_policy) === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">زنانه</span>}
+                  {(v.gender_for_now || v.gender_policy) === "male" && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">آقایان</span>}
+                  {(v.gender_for_now || v.gender_policy) === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">بانوان</span>}
                 </div>
               </div>
               <p className="text-sm text-gray-600">{v.district} &middot; {v.city}</p>
@@ -181,7 +181,7 @@ export default function DiscoverPage() {
                           <span className="font-medium text-gray-700 w-20">{dayMap[day] || day}</span>
                           {slots.map((s: any, i: number) => (
                             <span key={i} className={`rounded px-1.5 py-0.5 ${s.gender === "male" ? "bg-blue-100 text-blue-700" : s.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-700"}`}>
-                              {s.start_time?.slice(0,5)}-{s.end_time?.slice(0,5)} {s.gender === "male" ? "مرد" : s.gender === "female" ? "زن" : "مختلط"}
+                              {s.start_time?.slice(0,5)}-{s.end_time?.slice(0,5)} {s.gender === "male" ? "آقایان" : s.gender === "female" ? "بانوان" : ""}
                             </span>
                           ))}
                         </div>
@@ -193,7 +193,7 @@ export default function DiscoverPage() {
               {!selectedVenue.gender_slots?.length && selectedVenue.gender_policy !== "mixed" && (
                 <div className="mb-4 rounded-lg bg-gray-50 p-3">
                   <p className="text-xs text-gray-600">
-                    سیاست جنسیت: {selectedVenue.gender_policy === "male" ? "مردانه" : "زنانه"}
+                    سیاست جنسیت: {selectedVenue.gender_policy === "male" ? "آقایان" : "بانوان"}
                   </p>
                 </div>
               )}
@@ -252,7 +252,7 @@ export default function DiscoverPage() {
                       <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
                         <div>
                           <p className="font-medium text-gray-900">{o.name}</p>
-                          <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "مردانه" : o.gender_restriction === "female" ? "زنانه" : "مختلط"}</p>
+                          <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "آقایان" : o.gender_restriction === "female" ? "بانوان" : ""}</p>
                         </div>
                         <div className="text-right shrink-0 ml-4">
                           <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>

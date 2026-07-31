@@ -31,7 +31,7 @@ class TestGenderFiltering:
         ser = BookingCreateSerializer(data={"offer_id": offer.id}, context={"request": request})
         with pytest.raises(Exception) as exc_info:
             ser.is_valid(raise_exception=True)
-        assert "زنانه" in str(exc_info.value) or "مردانه" in str(exc_info.value)
+        assert "بانوان" in str(exc_info.value) or "آقایان" in str(exc_info.value)
 
     def test_male_employee_rejected_at_female_venue(self, male_employee, female_only_venue, company):
         from bookings.serializers import BookingCreateSerializer
@@ -47,7 +47,7 @@ class TestGenderFiltering:
         ser = BookingCreateSerializer(data={"offer_id": offer.id}, context={"request": request})
         with pytest.raises(Exception) as exc_info:
             ser.is_valid(raise_exception=True)
-        assert "زنانه" in str(exc_info.value)
+        assert "بانوان" in str(exc_info.value)
 
     def test_anyone_can_book_mixed_venue(self, male_employee, female_employee, mixed_venue, company):
         VenueCompanyAccess.objects.create(venue=mixed_venue, company=company)

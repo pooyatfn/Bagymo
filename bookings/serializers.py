@@ -21,7 +21,7 @@ class BookingCreateSerializer(serializers.Serializer):
         if user.gender:
             current_gender = offer.venue.gender_for_now()
             if current_gender != "mixed" and current_gender != user.gender:
-                gender_label = "مردانه" if current_gender == "male" else "زنانه"
+                gender_label = "آقایان" if current_gender == "male" else "بانوان"
                 raise serializers.ValidationError(f"این باشگاه در حال حاضر {gender_label} است.")
         # validate timeslot if provided
         timeslot = None

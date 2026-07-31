@@ -116,8 +116,8 @@ export default function ProfilePage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
               >
                 <option value="">انتخاب کنید</option>
-                <option value="male">مرد</option>
-                <option value="female">زن</option>
+                <option value="male">آقایان</option>
+                <option value="female">بانوان</option>
               </select>
               <p className="mt-1 text-xs text-gray-600">برای نمایش باشگاه‌های مناسب جنسیت شما</p>
             </div>
