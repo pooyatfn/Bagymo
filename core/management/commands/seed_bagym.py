@@ -72,7 +72,7 @@ class Command(BaseCommand):
                 if not offer:
                     Offer.objects.create(
                         venue=venue, name=oname, price=price,
-                        venue_payout=int(price * Decimal("0.92")), duration_minutes=dur, is_active=True
+                        venue_payout=int(price * Decimal("0.94")), duration_minutes=dur, is_active=True
                     )
             VenueCompanyAccess.objects.get_or_create(venue=venue, company=company, defaults={})
             if random.choice([True, False]):

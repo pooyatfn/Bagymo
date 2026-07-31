@@ -17,6 +17,7 @@ from django.core.cache import cache
 
 from bookings.models import Booking
 from billing.models import BudgetLedger, SettlementBatch
+from catalog.models import VenueCompanyAccess
 
 TOMAN = Decimal("1")
 
@@ -70,6 +71,16 @@ def reserve_booking(employee, offer):
     c_venue = employee.effective_commission_pct_venue()
     split = commission_split(offer.price, c_emp, c_venue)
 
+    # per-company negotiated payout override (VenueCompanyAccess)
+    venue_net = split["venue_net_payout"]
+    if employee.company_id:
+        try:
+            access = VenueCompanyAccess.objects.get(venue=offer.venue, company=employee.company, is_active=True)
+            if access.payout_override_toman is not None:
+                venue_net = access.payout_override_toman
+        except VenueCompanyAccess.DoesNotExist:
+            pass
+
     with transaction.atomic():
         # lock the budget row to prevent double-spend
         employee = (
@@ -102,7 +113,7 @@ def reserve_booking(employee, offer):
             employee_commission=split["employee_commission"],
             venue_gross_payout=split["venue_gross_payout"],
             venue_commission=split["venue_commission"],
-            venue_net_payout=split["venue_net_payout"],
+            venue_net_payout=venue_net,
             status=Booking.Status.PAID,  # budget already debited at reservation
             paid_at=timezone.now(),
             expires_at=expires_at,

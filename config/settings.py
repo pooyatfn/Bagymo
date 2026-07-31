@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "billing",
     "maps",
     "api",
+    "companies",
 ]
 
 MIDDLEWARE = [
