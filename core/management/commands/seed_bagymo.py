@@ -1,8 +1,8 @@
 """
-Seed script for bagym MVP demo.
+Seed script for bagymo MVP demo.
 Creates: 1 company, 3 employees, 10 offers across 3 gyms, 1 venue staff,
 and runs a demo booking to verify the commission math.
-Run:  python manage.py seed_bagym
+Run:  python manage.py seed_bagymo
 """
 from datetime import date
 from decimal import Decimal

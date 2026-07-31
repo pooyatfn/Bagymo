@@ -1,5 +1,5 @@
 """
-pytest fixtures for bagym test suite.
+pytest fixtures for bagymo test suite.
 """
 import pytest
 from datetime import date

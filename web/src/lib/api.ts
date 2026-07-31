@@ -1,5 +1,5 @@
 /**
- * Axios instance for bagym.ir API with JWT interceptors.
+ * Axios instance for bagymo.ir API with JWT interceptors.
  */
 import axios from "axios";
 

@@ -49,8 +49,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">باجم</h1>
-        <p className="mb-6 text-center text-sm text-gray-500">پلتفرم سلامت سازمانی</p>
+        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">باجیمو</h1>
+        <p className="mb-6 text-center text-sm text-gray-600">پلتفرم سلامت سازمانی</p>
 
         {phase === "phone" ? (
           <form onSubmit={handleRequest} className="space-y-4">
@@ -109,7 +109,7 @@ export default function LoginPage() {
           </form>
         )}
 
-        <p className="mt-6 text-center text-xs text-gray-400">
+        <p className="mt-6 text-center text-xs text-gray-600">
           حالت توسعه: کد OTP در خروجی سرور Django نمایش داده می‌شود
         </p>
       </div>

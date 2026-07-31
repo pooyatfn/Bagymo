@@ -83,11 +83,11 @@ export default function DiscoverPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجم</Link>
+          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجیمو</Link>
           <div className="flex items-center gap-3">
-            <Link href="/employee/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">داشبورد</Link>
-            <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline hidden sm:inline">رزروهای من</Link>
-            <span className="text-sm text-gray-500 hidden sm:inline">{user.phone_number}</span>
+            <Link href="/employee/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</Link>
+            <Link href="/employee/bookings" className="text-sm text-gray-600 hover:underline hidden sm:inline">رزروهای من</Link>
+            <span className="text-sm text-gray-600 hidden sm:inline">{user.phone_number}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -143,8 +143,8 @@ export default function DiscoverPage() {
                   {(v.gender_for_now || v.gender_policy) === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">زنانه</span>}
                 </div>
               </div>
-              <p className="text-sm text-gray-500">{v.district} &middot; {v.city}</p>
-              {v.address && <p className="mt-1 text-xs text-gray-400 truncate">{v.address}</p>}
+              <p className="text-sm text-gray-600">{v.district} &middot; {v.city}</p>
+              {v.address && <p className="mt-1 text-xs text-gray-600 truncate">{v.address}</p>}
               {v.rating !== null && v.rating !== undefined && (
                 <p className="mt-1 text-sm text-amber-600">&#9733; {Number(v.rating).toFixed(1)}</p>
               )}
@@ -159,10 +159,10 @@ export default function DiscoverPage() {
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{selectedVenue.name}</h2>
-                <button onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                <button onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }} className="text-gray-500 hover:text-gray-600 text-xl">&times;</button>
               </div>
-              <p className="mb-1 text-sm text-gray-500">{selectedVenue.district} &middot; {selectedVenue.city}</p>
-              {selectedVenue.address && <p className="mb-3 text-sm text-gray-400">{selectedVenue.address}</p>}
+              <p className="mb-1 text-sm text-gray-600">{selectedVenue.district} &middot; {selectedVenue.city}</p>
+              {selectedVenue.address && <p className="mb-3 text-sm text-gray-600">{selectedVenue.address}</p>}
 
               {/* Gender schedule */}
               {selectedVenue.gender_slots && selectedVenue.gender_slots.length > 0 && (
@@ -203,9 +203,9 @@ export default function DiscoverPage() {
                 <div>
                   <button onClick={() => { setSelectedOffer(null); setTimeslots([]); }} className="mb-3 text-sm text-emerald-600 hover:underline">بازگشت به لیست آفرها</button>
                   <p className="mb-1 font-semibold text-gray-900">{selectedOffer.name}</p>
-                  <p className="mb-3 text-sm text-gray-500">{selectedOffer.duration_minutes} دقیقه &middot; {formatTomans(selectedOffer.price)}</p>
+                  <p className="mb-3 text-sm text-gray-600">{selectedOffer.duration_minutes} دقیقه &middot; {formatTomans(selectedOffer.price)}</p>
                   {timeslots.length === 0 ? (
-                    <p className="py-6 text-center text-gray-400">زمان رزرو موجود نیست.</p>
+                    <p className="py-6 text-center text-gray-500">زمان رزرو موجود نیست.</p>
                   ) : (
                     <>
                       <p className="mb-2 text-xs font-medium text-gray-600">زمان مورد نظر را انتخاب کنید:</p>
@@ -245,14 +245,14 @@ export default function DiscoverPage() {
               ) : (
                 /* Offer list */
                 offers.length === 0 ? (
-                  <p className="py-8 text-center text-gray-400">آفری موجود نیست.</p>
+                  <p className="py-8 text-center text-gray-500">آفری موجود نیست.</p>
                 ) : (
                   <div className="space-y-3">
                     {offers.map((o: any) => (
                       <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
                         <div>
                           <p className="font-medium text-gray-900">{o.name}</p>
-                          <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "مردانه" : o.gender_restriction === "female" ? "زنانه" : "مختلط"}</p>
+                          <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "مردانه" : o.gender_restriction === "female" ? "زنانه" : "مختلط"}</p>
                         </div>
                         <div className="text-right shrink-0 ml-4">
                           <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>

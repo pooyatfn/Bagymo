@@ -1,4 +1,4 @@
-"""URL root for bagym project."""
+"""URL root for bagymo project."""
 from django.contrib import admin
 from django.urls import include, path
 

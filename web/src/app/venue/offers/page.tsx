@@ -78,9 +78,9 @@ export default function VenueOffersPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم — مدیریت آفرها</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو — مدیریت آفرها</span>
           <div className="flex items-center gap-3">
-            <a href="/venue/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">داشبورد</a>
+            <a href="/venue/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</a>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function VenueOffersPage() {
               </div>
             </div>
             {form.price && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 پرداخت به باشگاه: <span className="font-medium text-emerald-700">{formatTomans(Math.round(parseInt(form.price) * 0.94))}</span>
                 &nbsp;(۳٪ کارمزد کارمند + ۳٪ کارمزد باشگاه)
               </p>
@@ -146,7 +146,7 @@ export default function VenueOffersPage() {
         )}
 
         {offers.length === 0 ? (
-          <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">هنوز آفری ندارید. آفر جدید ایجاد کنید.</p>
+          <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز آفری ندارید. آفر جدید ایجاد کنید.</p>
         ) : (
           <div className="space-y-3">
             {offers.map((o: any) => (
@@ -154,11 +154,11 @@ export default function VenueOffersPage() {
                 <div className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
                   <div>
                     <p className="font-medium text-gray-900">{o.name}</p>
-                    <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "mixed" ? "مختلط" : o.gender_restriction === "male" ? "آقایان" : "خانم‌ها"}</p>
+                    <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "mixed" ? "مختلط" : o.gender_restriction === "male" ? "آقایان" : "خانم‌ها"}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
-                    <p className="text-xs text-gray-400">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
+                    <p className="text-xs text-gray-600">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
                     <button onClick={() => { setSelectedOffer(selectedOffer?.id === o.id ? null : o); loadSlots(o.id); }}
                       className="mt-1 text-xs text-emerald-600 hover:underline">
                       {selectedOffer?.id === o.id ? "بستن زمان‌بندی" : "زمان‌بندی"}
@@ -184,22 +184,22 @@ export default function VenueOffersPage() {
                     )}
                     <form onSubmit={handleCreateSlot} className="flex flex-wrap gap-2 items-end">
                       <div>
-                        <label className="text-xs text-gray-500">تاریخ</label>
+                        <label className="text-xs text-gray-600">تاریخ</label>
                         <input type="date" value={slotForm.date} onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })} required
                           className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">شروع</label>
+                        <label className="text-xs text-gray-600">شروع</label>
                         <input type="time" value={slotForm.start_time} onChange={(e) => setSlotForm({ ...slotForm, start_time: e.target.value })} required
                           className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">پایان</label>
+                        <label className="text-xs text-gray-600">پایان</label>
                         <input type="time" value={slotForm.end_time} onChange={(e) => setSlotForm({ ...slotForm, end_time: e.target.value })} required
                           className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">ظرفیت</label>
+                        <label className="text-xs text-gray-600">ظرفیت</label>
                         <input type="number" value={slotForm.capacity} onChange={(e) => setSlotForm({ ...slotForm, capacity: e.target.value })} min="0"
                           className="block w-20 rounded border border-gray-300 px-2 py-1.5 text-sm" />
                       </div>

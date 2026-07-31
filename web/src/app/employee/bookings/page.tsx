@@ -80,9 +80,9 @@ export default function BookingsPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجم</Link>
+          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجیمو</Link>
           <div className="flex items-center gap-3">
-            <Link href="/employee/dashboard" className="text-sm text-gray-500 hover:underline">داشبورد</Link>
+            <Link href="/employee/dashboard" className="text-sm text-gray-600 hover:underline">داشبورد</Link>
             <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline font-medium">کشف باشگاه‌ها</Link>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
@@ -91,10 +91,10 @@ export default function BookingsPage() {
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">رزروهای من</h1>
         {loading ? (
-          <p className="text-gray-400 text-center py-8">در حال بارگذاری...</p>
+          <p className="text-gray-500 text-center py-8">در حال بارگذاری...</p>
         ) : bookings.length === 0 ? (
           <div className="rounded-xl bg-white p-12 text-center shadow-sm">
-            <p className="text-gray-400 mb-4">هنوز رزروی ندارید.</p>
+            <p className="text-gray-500 mb-4">هنوز رزروی ندارید.</p>
             <Link href="/employee/discover" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
               کشف باشگاه‌ها
             </Link>
@@ -113,10 +113,10 @@ export default function BookingsPage() {
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] || "bg-gray-100 text-gray-500"}`}>
                         {statusLabels[b.status] || b.status}
                       </span>
-                      <span className="text-xs text-gray-400">#{b.id}</span>
+                      <span className="text-xs text-gray-600">#{b.id}</span>
                     </div>
                     <p className="font-medium text-gray-900">{b.offer_name || `رزرو #${b.id}`}</p>
-                    <p className="text-sm text-gray-500">{b.venue_name}</p>
+                    <p className="text-sm text-gray-600">{b.venue_name}</p>
                     {b.timeslot_date && (
                       <p className="text-xs text-emerald-600 font-medium">{b.timeslot_date} &middot; {b.timeslot_start?.slice(0,5)} - {b.timeslot_end?.slice(0,5)}</p>
                     )}
@@ -124,7 +124,7 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-3 sm:text-right">
                     <div>
                       <p className="font-bold text-gray-900">{formatTomans(b.price)}</p>
-                      <p className="text-xs text-gray-400">{b.duration_minutes || 60} دقیقه</p>
+                      <p className="text-xs text-gray-600">{b.duration_minutes || 60} دقیقه</p>
                     </div>
                     {canCancel(b) && (
                       <button

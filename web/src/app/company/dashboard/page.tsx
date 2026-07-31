@@ -51,10 +51,10 @@ export default function CompanyDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم — مدیر شرکت</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو — مدیر شرکت</span>
           <div className="flex items-center gap-4">
             <a href="/company/invoices" className="text-sm text-emerald-600 hover:underline">فاکتورها</a>
-            <span className="text-sm text-gray-500">{user.name}</span>
+            <span className="text-sm text-gray-600">{user.name}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -66,19 +66,19 @@ export default function CompanyDashboard() {
         {dashboard && (
           <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">تعداد کارمندان</p>
+              <p className="text-sm text-gray-600">تعداد کارمندان</p>
               <p className="text-2xl font-bold text-gray-900">{dashboard.employee_count}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">بودجه کل</p>
+              <p className="text-sm text-gray-600">بودجه کل</p>
               <p className="text-2xl font-bold text-emerald-700">{formatTomans(dashboard.total_annual_budget)}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">مصرف شده</p>
+              <p className="text-sm text-gray-600">مصرف شده</p>
               <p className="text-2xl font-bold text-amber-600">{formatTomans(dashboard.total_used)}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">تعداد رزروها</p>
+              <p className="text-sm text-gray-600">تعداد رزروها</p>
               <p className="text-2xl font-bold text-gray-900">{dashboard.total_bookings}</p>
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function CompanyDashboard() {
                       <div className="h-2 w-20 rounded-full bg-gray-200">
                         <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.min(e.usage_pct || 0, 100)}%` }} />
                       </div>
-                      <span className="text-xs text-gray-500">{(e.usage_pct || 0).toFixed(1)}٪</span>
+                      <span className="text-xs text-gray-600">{(e.usage_pct || 0).toFixed(1)}٪</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">

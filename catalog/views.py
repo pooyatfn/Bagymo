@@ -66,7 +66,7 @@ def register_venue(request):
     from accounts.models import User
     admins = User.objects.filter(role="admin")
     for admin in admins:
-        send_sms(admin.phone_number, f"باجم: باشگاه جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
+        send_sms(admin.phone_number, f"باجیمو: باشگاه جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
     return Response(VenueSerializer(venue).data, status=status.HTTP_201_CREATED)
 
 
@@ -142,7 +142,7 @@ def approve_venue(request, venue_id):
     # notify venue staff
     staff = venue.staff.first()
     if staff:
-        send_sms(staff.phone_number, f"باجم: باشگاه «{venue.name}» تایید شد! اکنون می‌توانید آفر ایجاد کنید.")
+        send_sms(staff.phone_number, f"باجیمو: باشگاه «{venue.name}» تایید شد! اکنون می‌توانید آفر ایجاد کنید.")
     return Response({"ok": True, "detail": "Venue approved"})
 
 
@@ -161,7 +161,7 @@ def reject_venue(request, venue_id):
     venue.save(update_fields=["status"])
     staff = venue.staff.first()
     if staff:
-        send_sms(staff.phone_number, f"باجم: باشگاه «{venue.name}» رد شد. دلیل: {reason}")
+        send_sms(staff.phone_number, f"باجیمو: باشگاه «{venue.name}» رد شد. دلیل: {reason}")
     return Response({"ok": True, "detail": "Venue rejected"})
 
 

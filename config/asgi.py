@@ -1,5 +1,5 @@
 """
-ASGI config for bagym project.
+ASGI config for bagymo project.
 """
 import os
 

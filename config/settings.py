@@ -1,5 +1,5 @@
 """
-Django settings for bagym (bagym.ir) project.
+Django settings for bagymo (bagymo.ir) project.
 Corporate wellness marketplace - Iran web-only.
 """
 from __future__ import annotations
@@ -84,8 +84,8 @@ if POSTGRES_HOST:
             "ENGINE": "django.db.backends.postgresql",
             "HOST": POSTGRES_HOST,
             "PORT": os.getenv("POSTGRES_PORT", "5432"),
-            "NAME": os.getenv("POSTGRES_DB", "bagym"),
-            "USER": os.getenv("POSTGRES_USER", "bagym"),
+            "NAME": os.getenv("POSTGRES_DB", "bagymo"),
+            "USER": os.getenv("POSTGRES_USER", "bagymo"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
         }
     }
@@ -108,7 +108,7 @@ CACHES = {
     "default": {
         # local dev uses locmem so no Redis server is required; production sets REDIS_URL
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-bagym-cache",
+        "LOCATION": "unique-bagymo-cache",
     }
 }
 CELERY_BROKER_URL = REDIS_URL

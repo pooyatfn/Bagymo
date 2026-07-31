@@ -75,9 +75,9 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم — پنل مدیریت</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو — پنل مدیریت</span>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{user.phone_number}</span>
+            <span className="text-sm text-gray-600">{user.phone_number}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -88,19 +88,19 @@ export default function AdminPage() {
         {/* Summary Cards */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">در انتظار تایید</p>
+            <p className="text-xs text-gray-600">در انتظار تایید</p>
             <p className="text-xl font-bold text-amber-600">{pendingVenues.length}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">تعداد باشگاه‌ها</p>
+            <p className="text-xs text-gray-600">تعداد باشگاه‌ها</p>
             <p className="text-xl font-bold text-gray-900">{venues.length}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">تعداد رزروها</p>
+            <p className="text-xs text-gray-600">تعداد رزروها</p>
             <p className="text-xl font-bold text-gray-900">{bookings.length}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">درآمد پلتفرم (۶٪)</p>
+            <p className="text-xs text-gray-600">درآمد پلتفرم (۶٪)</p>
             <p className="text-xl font-bold text-emerald-700">{formatTomans(platformMargin)}</p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function AdminPage() {
         {/* Pending Venues Tab */}
         {tab === "pending" && (
           pendingVenues.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">باشگاهی در انتظار تایید نیست.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">باشگاهی در انتظار تایید نیست.</p>
           ) : (
             <div className="space-y-3">
               {pendingVenues.map((v: any) => (
@@ -130,9 +130,9 @@ export default function AdminPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                       <h3 className="font-semibold text-gray-900">{v.name}</h3>
-                      <p className="text-sm text-gray-500">{v.category_name || v.category} &middot; {v.district} &middot; {v.city}</p>
-                      {v.address && <p className="text-xs text-gray-400 mt-1">{v.address}</p>}
-                      {v.phone && <p className="text-xs text-gray-400">تلفن: {v.phone}</p>}
+                      <p className="text-sm text-gray-600">{v.category_name || v.category} &middot; {v.district} &middot; {v.city}</p>
+                      {v.address && <p className="text-xs text-gray-600 mt-1">{v.address}</p>}
+                      {v.phone && <p className="text-xs text-gray-600">تلفن: {v.phone}</p>}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => handleApprove(v.id)}

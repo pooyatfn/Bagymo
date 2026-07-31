@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "باجم — پلتفرم سلامت سازمانی",
+  title: "باجیمو — پلتفرم سلامت سازمانی",
   description: "کشف باشگاه، استخر، سینما — با بودجه شرکت",
 };
 

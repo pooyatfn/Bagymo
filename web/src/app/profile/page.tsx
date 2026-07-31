@@ -53,9 +53,9 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <Link href="/" className="text-lg font-bold text-emerald-700">باجم</Link>
+          <Link href="/" className="text-lg font-bold text-emerald-700">باجیمو</Link>
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-sm text-gray-500 hover:underline">داشبورد</Link>
+            <Link href="/" className="text-sm text-gray-600 hover:underline">داشبورد</Link>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function ProfilePage() {
                 maxLength={26}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
               />
-              <p className="mt-1 text-xs text-gray-400">برای دریافت وجه در صورت لغو رزرو</p>
+              <p className="mt-1 text-xs text-gray-600">برای دریافت وجه در صورت لغو رزرو</p>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">جنسیت</label>
@@ -119,7 +119,7 @@ export default function ProfilePage() {
                 <option value="male">مرد</option>
                 <option value="female">زن</option>
               </select>
-              <p className="mt-1 text-xs text-gray-400">برای نمایش باشگاه‌های مناسب جنسیت شما</p>
+              <p className="mt-1 text-xs text-gray-600">برای نمایش باشگاه‌های مناسب جنسیت شما</p>
             </div>
 
             <div className="flex items-center gap-3">

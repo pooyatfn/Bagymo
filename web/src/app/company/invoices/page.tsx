@@ -65,10 +65,10 @@ export default function InvoicesPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم — مدیر شرکت</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو — مدیر شرکت</span>
           <div className="flex items-center gap-3">
-            <a href="/company/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">داشبورد</a>
-            <span className="text-sm text-gray-500 hidden sm:inline">{user.name}</span>
+            <a href="/company/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</a>
+            <span className="text-sm text-gray-600 hidden sm:inline">{user.name}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -79,15 +79,15 @@ export default function InvoicesPage() {
         {/* Summary Cards */}
         <div className="mb-6 grid grid-cols-3 gap-4">
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">کل صورتحساب</p>
+            <p className="text-xs text-gray-600">کل صورتحساب</p>
             <p className="text-xl font-bold text-emerald-700">{formatTomans(totalBilled)}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">تعداد رزروها</p>
+            <p className="text-xs text-gray-600">تعداد رزروها</p>
             <p className="text-xl font-bold text-gray-900">{totalBookings}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">کل هزینه</p>
+            <p className="text-xs text-gray-600">کل هزینه</p>
             <p className="text-xl font-bold text-amber-600">{formatTomans(totalSpent)}</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function InvoicesPage() {
 
         {tab === "invoices" ? (
           invoices.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">هنوز فاکتوری ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز فاکتوری ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">
@@ -141,7 +141,7 @@ export default function InvoicesPage() {
           )
         ) : (
           bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">هنوز رزروی ندارید.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">
@@ -159,7 +159,7 @@ export default function InvoicesPage() {
                     <tr key={b.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900">{b.employee_name}</p>
-                        <p className="text-xs text-gray-400">{b.employee_phone}</p>
+                        <p className="text-xs text-gray-600">{b.employee_phone}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{b.venue_name}</td>
                       <td className="px-4 py-3 text-gray-600">{b.offer_name}</td>

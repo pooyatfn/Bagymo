@@ -50,13 +50,13 @@ export default function RegisterVenuePage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو</span>
           <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
         </div>
       </nav>
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8">
         <h1 className="mb-2 text-2xl font-bold text-gray-900">ثبت باشگاه</h1>
-        <p className="mb-6 text-sm text-gray-500">اطلاعات باشگاه خود را وارد کنید تا در پلتفرم نمایش داده شود.</p>
+        <p className="mb-6 text-sm text-gray-600">اطلاعات باشگاه خود را وارد کنید تا در پلتفرم نمایش داده شود.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white p-6 shadow-sm">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

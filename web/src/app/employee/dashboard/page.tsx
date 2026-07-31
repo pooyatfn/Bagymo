@@ -25,18 +25,18 @@ export default function EmployeeDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو</span>
           <div className="flex items-center gap-4">
             <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">
               کشف باشگاه‌ها
             </Link>
-            <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline">
+            <Link href="/employee/bookings" className="text-sm text-gray-600 hover:underline">
               رزروهای من
             </Link>
-            <Link href="/profile" className="text-sm text-gray-500 hover:underline">
+            <Link href="/profile" className="text-sm text-gray-600 hover:underline">
               پروفایل
             </Link>
-            <span className="text-sm text-gray-500">{user.phone_number}</span>
+            <span className="text-sm text-gray-600">{user.phone_number}</span>
             <button onClick={() => { logout(); window.location.href = "/login"; }} className="text-sm text-red-500 hover:underline">
               خروج
             </button>
@@ -50,7 +50,7 @@ export default function EmployeeDashboard() {
         <div className="mb-8 rounded-xl bg-white p-6 shadow-sm">
           <h2 className="mb-2 text-sm font-medium text-gray-500">بودجه باقیمانده</h2>
           <p className="text-3xl font-bold text-emerald-700">{formatTomans(user.remaining_budget)}</p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-600">
             از {formatTomans(user.annual_budget)} سالانه &middot; مصرف شده: {formatTomans(user.annual_budget - user.remaining_budget)}
           </p>
           <div className="mt-3 h-2 w-full rounded-full bg-gray-200">
@@ -71,18 +71,18 @@ export default function EmployeeDashboard() {
             <Link href="/employee/bookings" className="text-sm text-emerald-600 hover:underline">مشاهده همه</Link>
           </div>
           {bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-6 text-center text-gray-400 shadow-sm">هنوز رزروی ندارید. باشگاه‌ها را کشف کنید.</p>
+            <p className="rounded-lg bg-white p-6 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید. باشگاه‌ها را کشف کنید.</p>
           ) : (
             <div className="space-y-3">
               {bookings.slice(0, 5).map((b: any) => (
                 <Link key={b.id} href="/employee/bookings" className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm hover:bg-gray-50 block">
                   <div>
                     <p className="font-medium text-gray-900">{b.offer_name || `رزرو #${b.id}`}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600">
                       {b.venue_name || ""} &middot; {b.status === "paid" || b.status === "reserved" ? "رزرو شده" : b.status}
                     </p>
                     {b.reserved_at && (
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-gray-600 mt-0.5">
                         {new Date(b.reserved_at).toLocaleDateString("fa-IR")} ساعت {new Date(b.reserved_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     )}
@@ -109,7 +109,7 @@ export default function EmployeeDashboard() {
             {venues.map((v: any) => (
               <div key={v.id} className="rounded-lg bg-white p-4 shadow-sm">
                 <p className="font-medium text-gray-900">{v.name}</p>
-                <p className="mt-1 text-sm text-gray-500">{v.category_name} &middot; {v.district}</p>
+                <p className="mt-1 text-sm text-gray-600">{v.category_name} &middot; {v.district}</p>
               </div>
             ))}
           </div>

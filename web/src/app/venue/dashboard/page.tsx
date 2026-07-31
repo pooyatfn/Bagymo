@@ -65,12 +65,12 @@ export default function VenueDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجم — کارمند باشگاه</span>
+          <span className="text-lg font-bold text-emerald-700">باجیمو — کارمند باشگاه</span>
           <div className="flex items-center gap-4">
             <a href="/venue/settlements" className="text-sm text-emerald-600 hover:underline hidden sm:inline">تسویه‌حساب</a>
             <a href="/venue/offers" className="text-sm text-emerald-600 hover:underline hidden sm:inline">آفرها</a>
-            <a href="/venue/register" className="text-sm text-gray-500 hover:underline hidden sm:inline">ثبت باشگاه</a>
-            <span className="text-sm text-gray-500">{user.name}</span>
+            <a href="/venue/register" className="text-sm text-gray-600 hover:underline hidden sm:inline">ثبت باشگاه</a>
+            <span className="text-sm text-gray-600">{user.name}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
@@ -109,15 +109,15 @@ export default function VenueDashboard() {
         {stats && (
           <div className="mb-8 grid grid-cols-3 gap-4">
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">تعداد رزروها</p>
+              <p className="text-sm text-gray-600">تعداد رزروها</p>
               <p className="text-2xl font-bold text-gray-900">{stats.total_count || 0}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">تسویه پرداخت شده</p>
+              <p className="text-sm text-gray-600">تسویه پرداخت شده</p>
               <p className="text-2xl font-bold text-emerald-700">{formatTomans(stats.total_net_payout || 0)}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">وضعیت</p>
+              <p className="text-sm text-gray-600">وضعیت</p>
               <p className="text-2xl font-bold text-gray-900">{stats.status === "paid" ? "پرداخت شده" : "در انتظار"}</p>
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function VenueDashboard() {
         {/* Reservation List */}
         <h2 className="mb-3 text-lg font-semibold text-gray-900">رزروها</h2>
         {bookings.length === 0 ? (
-          <p className="rounded-lg bg-white p-6 text-center text-gray-400 shadow-sm">هنوز رزروی ندارید.</p>
+          <p className="rounded-lg bg-white p-6 text-center text-gray-500 shadow-sm">هنوز رزروی ندارید.</p>
         ) : (
           <div className="space-y-2">
             {bookings.map((b: any) => (
@@ -137,13 +137,13 @@ export default function VenueDashboard() {
                   </span>
                   <div>
                     <p className="font-medium text-gray-900">{b.offer_name || `رزرو #${b.id}`}</p>
-                    <p className="text-sm text-gray-500">{b.venue_name} &middot; {new Date(b.reserved_at).toLocaleDateString("fa-IR")}</p>
+                    <p className="text-sm text-gray-600">{b.venue_name} &middot; {new Date(b.reserved_at).toLocaleDateString("fa-IR")}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-medium text-gray-900">{formatTomans(b.price)}</p>
                   {b.check_in_code && b.status === "reserved" && (
-                    <p className="text-xs text-gray-400">کد: {b.check_in_code}</p>
+                    <p className="text-xs text-gray-600">کد: {b.check_in_code}</p>
                   )}
                 </div>
               </div>
