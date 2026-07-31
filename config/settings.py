@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # third party
     "rest_framework",
+    "corsheaders",
     "django_celery_beat",
     # local
     "core",
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -172,3 +174,7 @@ DEFAULT_COMMISSION_PCT_EMP = 0.03
 DEFAULT_COMMISSION_PCT_VENUE = 0.03
 RESERVATION_TTL_MINUTES = 15
 MIN_PAYOUT_TOMAN = 100_000
+
+# CORS (dev: allow localhost) -------------------------------------------
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]

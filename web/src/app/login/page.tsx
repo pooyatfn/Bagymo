@@ -1,0 +1,118 @@
+"use client";
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+  const { login, verify } = useAuth();
+  const router = useRouter();
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [phase, setPhase] = useState<"phone" | "otp">("phone");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await login(phone);
+      setPhase("otp");
+    } catch {
+      setError("Invalid phone number");
+    }
+    setLoading(false);
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const { created } = await verify(phone, code);
+      const role = localStorage.getItem("role");
+      const paths: Record<string, string> = {
+        employee: "/employee/dashboard",
+        company_admin: "/company/dashboard",
+        company_hr: "/company/dashboard",
+        venue_staff: "/venue/dashboard",
+        admin: "/company/dashboard",
+      };
+      router.push(paths[role || "employee"] || "/employee/dashboard");
+    } catch {
+      setError("Invalid code — check console for dev code");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
+        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">Bagym</h1>
+        <p className="mb-6 text-center text-sm text-gray-500">Corporate Wellness Platform</p>
+
+        {phase === "phone" ? (
+          <form onSubmit={handleRequest} className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0912xxx0000"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {loading ? "Sending..." : "Send OTP Code"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerify} className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Code sent to <strong>{phone}</strong>
+            </p>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Verification Code</label>
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="6-digit code"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                required
+                autoFocus
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {loading ? "Verifying..." : "Verify & Login"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPhase("phone"); setCode(""); setError(""); }}
+              className="w-full text-center text-sm text-emerald-600 hover:underline"
+            >
+              Change phone number
+            </button>
+          </form>
+        )}
+
+        <p className="mt-6 text-center text-xs text-gray-400">
+          Dev mode: check Django server stdout for OTP codes
+        </p>
+      </div>
+    </div>
+  );
+}
