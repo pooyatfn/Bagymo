@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -36,11 +36,11 @@ export default function DiscoverPage() {
     setBooking(offerId);
     try {
       const res = await api.post("/bookings/", { offer_id: offerId });
-      alert(`Booked! Check-in code: ${res.data.check_in_code}`);
+      alert(`رزرو شد! کد ورود: ${res.data.check_in_code}`);
       setBooking(null);
       setSelectedVenue(null);
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Booking failed");
+      alert(err.response?.data?.detail || "خطا در رزرو");
       setBooking(null);
     }
   };
@@ -55,30 +55,30 @@ export default function DiscoverPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">Bagym</Link>
+          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجم</Link>
           <div className="flex items-center gap-3">
-            <Link href="/employee/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">Dashboard</Link>
-            <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline hidden sm:inline">My Bookings</Link>
+            <Link href="/employee/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">داشبورد</Link>
+            <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline hidden sm:inline">رزروهای من</Link>
             <span className="text-sm text-gray-500 hidden sm:inline">{user.phone_number}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">Logout</button>
+            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
       </nav>
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-gray-900">Discover Venues</h1>
+          <h1 className="text-2xl font-bold text-gray-900">کشف باشگاه‌ها</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setView("list")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "list" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
             >
-              List
+              لیست
             </button>
             <button
               onClick={() => setView("map")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "map" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
             >
-              Map
+              نقشه
             </button>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function DiscoverPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or district..."
+          placeholder="جستجو بر اساس نام یا منطقه..."
           className="mb-6 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
 
@@ -112,6 +112,7 @@ export default function DiscoverPage() {
                 <span className="ml-2 shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{v.category_name}</span>
               </div>
               <p className="text-sm text-gray-500">{v.district} &middot; {v.city}</p>
+              {v.address && <p className="mt-1 text-xs text-gray-400 truncate">{v.address}</p>}
               {v.rating !== null && v.rating !== undefined && (
                 <p className="mt-1 text-sm text-amber-600">&#9733; {Number(v.rating).toFixed(1)}</p>
               )}
@@ -132,14 +133,14 @@ export default function DiscoverPage() {
               {selectedVenue.address && <p className="mb-4 text-sm text-gray-400">{selectedVenue.address}</p>}
 
               {offers.length === 0 ? (
-                <p className="py-8 text-center text-gray-400">No offers available.</p>
+                <p className="py-8 text-center text-gray-400">آفری موجود نیست.</p>
               ) : (
                 <div className="space-y-3">
                   {offers.map((o: any) => (
                     <div key={o.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
                       <div>
                         <p className="font-medium text-gray-900">{o.name}</p>
-                        <p className="text-sm text-gray-500">{o.duration_minutes} min &middot; {o.session_type || o.gender_restriction}</p>
+                        <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.session_type || o.gender_restriction}</p>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
@@ -148,7 +149,7 @@ export default function DiscoverPage() {
                           disabled={booking === o.id}
                           className="mt-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                          {booking === o.id ? "Booking..." : "Book Now"}
+                          {booking === o.id ? "در حال رزرو..." : "رزرو"}
                         </button>
                       </div>
                     </div>

@@ -20,7 +20,7 @@ export default function LoginPage() {
       await login(phone);
       setPhase("otp");
     } catch {
-      setError("Invalid phone number");
+      setError("شماره تلفن نامعتبر است");
     }
     setLoading(false);
   };
@@ -41,7 +41,7 @@ export default function LoginPage() {
       };
       router.push(paths[role || "employee"] || "/employee/dashboard");
     } catch {
-      setError("Invalid code — check console for dev code");
+      setError("کد نامعتبر است — کد توسعه را در ترمینال بررسی کنید");
     }
     setLoading(false);
   };
@@ -49,13 +49,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">Bagym</h1>
-        <p className="mb-6 text-center text-sm text-gray-500">Corporate Wellness Platform</p>
+        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">باجم</h1>
+        <p className="mb-6 text-center text-sm text-gray-500">پلتفرم سلامت سازمانی</p>
 
         {phase === "phone" ? (
           <form onSubmit={handleRequest} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Phone Number</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">شماره تلفن</label>
               <input
                 type="tel"
                 value={phone}
@@ -71,21 +71,21 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send OTP Code"}
+              {loading ? "در حال ارسال..." : "ارسال کد تایید"}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerify} className="space-y-4">
             <p className="text-sm text-gray-600">
-              Code sent to <strong>{phone}</strong>
+              کد به <strong>{phone}</strong> ارسال شد
             </p>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Verification Code</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">کد تایید</label>
               <input
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="6-digit code"
+                placeholder="کد ۶ رقمی"
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 required
                 autoFocus
@@ -97,20 +97,20 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {loading ? "Verifying..." : "Verify & Login"}
+              {loading ? "در حال تایید..." : "تایید و ورود"}
             </button>
             <button
               type="button"
               onClick={() => { setPhase("phone"); setCode(""); setError(""); }}
               className="w-full text-center text-sm text-emerald-600 hover:underline"
             >
-              Change phone number
+              تغییر شماره تلفن
             </button>
           </form>
         )}
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          Dev mode: check Django server stdout for OTP codes
+          حالت توسعه: کد OTP در خروجی سرور Django نمایش داده می‌شود
         </p>
       </div>
     </div>

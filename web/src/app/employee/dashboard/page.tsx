@@ -31,30 +31,30 @@ export default function EmployeeDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">Bagym</span>
+          <span className="text-lg font-bold text-emerald-700">باجم</span>
           <div className="flex items-center gap-4">
             <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">
-              Discover Venues
+              کشف باشگاه‌ها
             </Link>
             <Link href="/employee/bookings" className="text-sm text-gray-500 hover:underline">
-              My Bookings
+              رزروهای من
             </Link>
             <span className="text-sm text-gray-500">{user.phone_number}</span>
             <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">
-              Logout
+              خروج
             </button>
           </div>
         </div>
       </nav>
       <main className="mx-auto max-w-4xl px-6 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Employee Dashboard</h1>
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">داشبورد کارمند</h1>
 
         {/* Budget Card */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow-sm">
-          <h2 className="mb-2 text-sm font-medium text-gray-500">Remaining Budget</h2>
+          <h2 className="mb-2 text-sm font-medium text-gray-500">بودجه باقیمانده</h2>
           <p className="text-3xl font-bold text-emerald-700">{formatTomans(user.remaining_budget)}</p>
           <p className="mt-1 text-sm text-gray-500">
-            of {formatTomans(user.annual_budget)} annual &middot; {usagePct}% used
+            از {formatTomans(user.annual_budget)} سالانه &middot; {usagePct}% مصرف شده
           </p>
           <div className="mt-3 h-2 w-full rounded-full bg-gray-200">
             <div
@@ -63,31 +63,30 @@ export default function EmployeeDashboard() {
             />
           </div>
           {parseFloat(usagePct) > 80 && (
-            <p className="mt-2 text-sm text-amber-600">You have used over 80% of your annual budget.</p>
+            <p className="mt-2 text-sm text-amber-600">بیش از ۸۰٪ بودجه سالانه خود را مصرف کرده‌اید.</p>
           )}
         </div>
 
         {/* Recent Bookings */}
         <div className="mb-8">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Bookings</h2>
-            <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">Book a session</Link>
+            <h2 className="text-lg font-semibold text-gray-900">رزروهای اخیر</h2>
+            <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">رزرو جدید</Link>
           </div>
           {bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-6 text-center text-gray-400 shadow-sm">No bookings yet. Discover venues to get started.</p>
+            <p className="rounded-lg bg-white p-6 text-center text-gray-400 shadow-sm">هنوز رزروی ندارید. باشگاه‌ها را کشف کنید.</p>
           ) : (
             <div className="space-y-3">
-              {bookings.slice(0, 10).map((b: any) => (
+              {bookings.slice(0, 5).map((b: any) => (
                 <div key={b.id} className="flex items-center justify-between rounded-lg bg-white p-4 shadow-sm">
                   <div>
-                    <p className="font-medium text-gray-900">{b.offer_name || `Booking #${b.id}`}</p>
+                    <p className="font-medium text-gray-900">{b.offer_name || `رزرو #${b.id}`}</p>
                     <p className="text-sm text-gray-500">
                       {b.venue_name || ""} &middot; {b.status}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-gray-900">{formatTomans(b.price)}</p>
-                    <p className="text-sm text-gray-500">{b.emp_commission} comm.</p>
                   </div>
                 </div>
               ))}
@@ -98,8 +97,8 @@ export default function EmployeeDashboard() {
         {/* Nearby Venues */}
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Nearby Venues</h2>
-            <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">View all</Link>
+            <h2 className="text-lg font-semibold text-gray-900">باشگاه‌های نزدیک</h2>
+            <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline">مشاهده همه</Link>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {venues.map((v: any) => (

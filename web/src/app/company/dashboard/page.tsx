@@ -33,14 +33,14 @@ export default function CompanyDashboard() {
     try {
       await api.post(`/companies/employees/${selectedEmp.id}/adjust/`, {
         type: adjustType,
-        amount: parseInt(adjustAmount) * 10, // Convert from toman to rial
-        reason: `HR ${adjustType} via dashboard`,
+        amount: parseInt(adjustAmount) * 10,
+        reason: `تعدیل ${adjustType === "credit" ? "افزایش" : "کاهش"} توسط مدیر`,
       });
       setAdjustAmount("");
       setSelectedEmp(null);
       load();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Adjustment failed");
+      alert(err.response?.data?.detail || "خطا در تعدیل بودجه");
     }
     setLoading(false);
   };
@@ -51,50 +51,50 @@ export default function CompanyDashboard() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">Bagym — Company Admin</span>
+          <span className="text-lg font-bold text-emerald-700">باجم — مدیر شرکت</span>
           <div className="flex items-center gap-4">
-            <a href="/company/invoices" className="text-sm text-emerald-600 hover:underline">Invoices & Bookings</a>
+            <a href="/company/invoices" className="text-sm text-emerald-600 hover:underline">فاکتورها</a>
             <span className="text-sm text-gray-500">{user.name}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">Logout</button>
+            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
       </nav>
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Company Dashboard</h1>
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">داشبورد شرکت</h1>
 
         {/* Summary Cards */}
         {dashboard && (
           <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">Employees</p>
+              <p className="text-sm text-gray-500">تعداد کارمندان</p>
               <p className="text-2xl font-bold text-gray-900">{dashboard.employee_count}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">Total Budget</p>
+              <p className="text-sm text-gray-500">بودجه کل</p>
               <p className="text-2xl font-bold text-emerald-700">{formatTomans(dashboard.total_annual_budget)}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">Used</p>
+              <p className="text-sm text-gray-500">مصرف شده</p>
               <p className="text-2xl font-bold text-amber-600">{formatTomans(dashboard.total_used)}</p>
             </div>
             <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-500">Bookings</p>
+              <p className="text-sm text-gray-500">تعداد رزروها</p>
               <p className="text-2xl font-bold text-gray-900">{dashboard.total_bookings}</p>
             </div>
           </div>
         )}
 
         {/* Employee Table */}
-        <h2 className="mb-3 text-lg font-semibold text-gray-900">Employees</h2>
+        <h2 className="mb-3 text-lg font-semibold text-gray-900">کارمندان</h2>
         <div className="overflow-hidden rounded-xl bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-200 bg-gray-50">
               <tr>
-                <th className="px-4 py-3 font-medium text-gray-600">Phone</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Remaining</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Usage</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Action</th>
+                <th className="px-4 py-3 font-medium text-gray-600">تلفن</th>
+                <th className="px-4 py-3 font-medium text-gray-600">نام</th>
+                <th className="px-4 py-3 font-medium text-gray-600">بودجه باقیمانده</th>
+                <th className="px-4 py-3 font-medium text-gray-600">مصرف</th>
+                <th className="px-4 py-3 font-medium text-gray-600">عملیات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -108,7 +108,7 @@ export default function CompanyDashboard() {
                       <div className="h-2 w-20 rounded-full bg-gray-200">
                         <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${Math.min(e.usage_pct || 0, 100)}%` }} />
                       </div>
-                      <span className="text-xs text-gray-500">{(e.usage_pct || 0).toFixed(1)}%</span>
+                      <span className="text-xs text-gray-500">{(e.usage_pct || 0).toFixed(1)}٪</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -116,7 +116,7 @@ export default function CompanyDashboard() {
                       onClick={() => setSelectedEmp(e)}
                       className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                     >
-                      Adjust Budget
+                      تعدیل بودجه
                     </button>
                   </td>
                 </tr>
@@ -129,7 +129,7 @@ export default function CompanyDashboard() {
         {selectedEmp && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelectedEmp(null)}>
             <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="mb-4 text-lg font-bold text-gray-900">Adjust Budget — {selectedEmp.name}</h3>
+              <h3 className="mb-4 text-lg font-bold text-gray-900">تعدیل بودجه — {selectedEmp.name}</h3>
               <form onSubmit={handleAdjust} className="space-y-4">
                 <div className="flex gap-2">
                   {(["credit", "debit"] as const).map((t) => (
@@ -143,17 +143,17 @@ export default function CompanyDashboard() {
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                     >
-                      {t === "credit" ? "Credit (+)" : "Debit (-)"}
+                      {t === "credit" ? "افزایش (+)" : "کاهش (-)"}
                     </button>
                   ))}
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Amount (Toman)</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">مبلغ (تومان)</label>
                   <input
                     type="number"
                     value={adjustAmount}
                     onChange={(e) => setAdjustAmount(e.target.value)}
-                    placeholder="e.g. 500000"
+                    placeholder="مثلاً ۵۰۰,۰۰۰"
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                     required
                     min="1"
@@ -161,10 +161,10 @@ export default function CompanyDashboard() {
                 </div>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setSelectedEmp(null)} className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200">
-                    Cancel
+                    انصراف
                   </button>
                   <button type="submit" disabled={loading || !adjustAmount} className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                    {loading ? "Saving..." : "Confirm"}
+                    {loading ? "در حال ذخیره..." : "تایید"}
                   </button>
                 </div>
               </form>

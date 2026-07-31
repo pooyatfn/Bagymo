@@ -34,12 +34,27 @@ export default function InvoicesPage() {
     failed: "bg-red-100 text-red-600",
   };
 
+  const statusLabels: Record<string, string> = {
+    draft: "پیش‌نویس",
+    pending: "در انتظار",
+    paid: "پرداخت شده",
+    failed: "ناموفق",
+  };
+
   const bookingStatusColors: Record<string, string> = {
     reserved: "bg-blue-100 text-blue-700",
     checked_in: "bg-emerald-100 text-emerald-700",
     completed: "bg-gray-100 text-gray-600",
     cancelled: "bg-red-100 text-red-600",
     expired: "bg-amber-100 text-amber-700",
+  };
+
+  const bookingStatusLabels: Record<string, string> = {
+    reserved: "رزرو شده",
+    checked_in: "ورود تایید شده",
+    completed: "تکمیل شده",
+    cancelled: "لغو شده",
+    expired: "منقضی شده",
   };
 
   const totalBilled = invoices.reduce((s, i) => s + (i.total_toman || 0), 0);
@@ -50,29 +65,29 @@ export default function InvoicesPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">Bagym — Company Admin</span>
+          <span className="text-lg font-bold text-emerald-700">باجم — مدیر شرکت</span>
           <div className="flex items-center gap-3">
-            <a href="/company/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">Dashboard</a>
+            <a href="/company/dashboard" className="text-sm text-gray-500 hover:underline hidden sm:inline">داشبورد</a>
             <span className="text-sm text-gray-500 hidden sm:inline">{user.name}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">Logout</button>
+            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
           </div>
         </div>
       </nav>
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Invoices & Bookings</h1>
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">فاکتورها و رزروها</h1>
 
         {/* Summary Cards */}
         <div className="mb-6 grid grid-cols-3 gap-4">
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">Total Billed</p>
+            <p className="text-xs text-gray-500">کل صورتحساب</p>
             <p className="text-xl font-bold text-emerald-700">{formatTomans(totalBilled)}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">Total Bookings</p>
+            <p className="text-xs text-gray-500">تعداد رزروها</p>
             <p className="text-xl font-bold text-gray-900">{totalBookings}</p>
           </div>
           <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-500">Total Spent</p>
+            <p className="text-xs text-gray-500">کل هزینه</p>
             <p className="text-xl font-bold text-amber-600">{formatTomans(totalSpent)}</p>
           </div>
         </div>
@@ -83,27 +98,27 @@ export default function InvoicesPage() {
             onClick={() => setTab("invoices")}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "invoices" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
           >
-            Invoices ({invoices.length})
+            فاکتورها ({invoices.length})
           </button>
           <button
             onClick={() => setTab("bookings")}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "bookings" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
           >
-            All Bookings ({bookings.length})
+            رزروها ({bookings.length})
           </button>
         </div>
 
         {tab === "invoices" ? (
           invoices.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">No invoices yet.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">هنوز فاکتوری ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">Period</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Total</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">دوره</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">مبلغ</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">وضعیت</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -115,7 +130,7 @@ export default function InvoicesPage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{formatTomans(inv.total_toman)}</td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[inv.status] || ""}`}>
-                          {inv.status}
+                          {statusLabels[inv.status] || inv.status}
                         </span>
                       </td>
                     </tr>
@@ -126,17 +141,17 @@ export default function InvoicesPage() {
           )
         ) : (
           bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">No bookings yet.</p>
+            <p className="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">هنوز رزروی ندارید.</p>
           ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">Employee</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Venue</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Offer</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Price</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Status</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">کارمند</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">باشگاه</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">آفر</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">مبلغ</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">وضعیت</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -151,7 +166,7 @@ export default function InvoicesPage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{formatTomans(b.price)}</td>
                       <td className="px-4 py-3">
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${bookingStatusColors[b.status] || ""}`}>
-                          {b.status}
+                          {bookingStatusLabels[b.status] || b.status}
                         </span>
                       </td>
                     </tr>

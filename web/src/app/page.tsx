@@ -25,7 +25,7 @@ export default function Home() {
 
   return (
     <div className="flex h-screen items-center justify-center">
-      <p className="text-gray-500">Loading...</p>
+      <p className="text-gray-500">در حال بارگذاری...</p>
     </div>
   );
 }
