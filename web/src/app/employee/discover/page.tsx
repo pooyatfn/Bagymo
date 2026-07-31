@@ -167,7 +167,7 @@ export default function DiscoverPage() {
               {/* Gender schedule */}
               {selectedVenue.gender_slots && selectedVenue.gender_slots.length > 0 && (
                 <div className="mb-4 rounded-lg bg-gray-50 p-3">
-                  <p className="mb-2 text-xs font-medium text-gray-600">زمان‌بندی جنسیت:</p>
+                  <p className="mb-2 text-xs font-medium text-gray-600">سانس‌ها:</p>
                   <div className="space-y-1">
                     {(() => {
                       const dayMap: Record<string, string> = {sat:"شنبه",sun:"یکشنبه",mon:"دوشنبه",tue:"سه‌شنبه",wed:"چهارشنبه",thu:"پنجشنبه",fri:"جمعه"};

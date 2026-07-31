@@ -16,9 +16,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
-    setName(user.name || "");
-    setSheba((user as any).sheba || "");
-    setGender((user as any).gender || "");
     api.get("/auth/profile/").then((r) => {
       setName(r.data.name || "");
       setSheba(r.data.sheba || "");
