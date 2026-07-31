@@ -72,7 +72,7 @@ class Command(BaseCommand):
             slug="gym", defaults={"name_en": "Gym", "name_fa": "بدنسازی"}
         )
         company, _ = Company.objects.get_or_create(
-            name="Bagym Demo Co.",
+            name="Bagymo Demo Co.",
             defaults={"domain": "demo.local", "default_annual_budget": 8_000_000,
                       "fiscal_year_start": date.today(), "is_active": True},
         )
