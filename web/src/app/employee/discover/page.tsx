@@ -28,8 +28,8 @@ export default function DiscoverPage() {
   }, [user]);
 
   const loadOffers = async (venueId: number) => {
-    const res = await api.get(`/catalog/offers/?venue=${venueId}`);
-    setOffers(res.data.results || res.data);
+    const res = await api.get(`/catalog/venues/${venueId}/offers/`);
+    setOffers(res.data);
   };
 
   const handleBook = async (offerId: number) => {
