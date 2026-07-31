@@ -100,6 +100,43 @@ class Venue(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.get_category_display()})"
 
+    def gender_for_now(self):
+        """Return the gender policy active at the current time, or the static default."""
+        from django.utils import timezone
+        now = timezone.now()
+        day_map = {0: "sat", 1: "sun", 2: "mon", 3: "tue", 4: "wed", 5: "thu", 6: "fri"}
+        today = day_map[now.weekday()]
+        current_time = now.time()
+        slots = self.gender_slots.filter(day_of_week=today, is_active=True)
+        for slot in slots:
+            if slot.start_time <= current_time < slot.end_time:
+                return slot.gender
+        return self.gender_policy
+
+
+class VenueGenderSlot(models.Model):
+    """Time-based gender policy for a venue.
+    Example: male-only on sat/mon/wed 6:00-14:00, female-only 14:00-22:00."""
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="gender_slots")
+    DAY_CHOICES = [
+        ("sat", "Saturday"), ("sun", "Sunday"), ("mon", "Monday"),
+        ("tue", "Tuesday"), ("wed", "Wednesday"), ("thu", "Thursday"), ("fri", "Friday"),
+    ]
+    day_of_week = models.CharField(max_length=3, choices=DAY_CHOICES)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    gender = models.CharField(max_length=8, choices=Venue.GenderPolicy.CHOICES)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "catalog_venuegenderslot"
+        ordering = ["day_of_week", "start_time"]
+        indexes = [models.Index(fields=["venue", "day_of_week"])]
+
+    def __str__(self):
+        return f"{self.venue.name} {self.get_day_of_week_display()} {self.start_time}-{self.end_time} → {self.gender}"
+
 
 class VenueCompanyAccess(models.Model):
     """Join: which companies can use a venue + optional override payout rate.

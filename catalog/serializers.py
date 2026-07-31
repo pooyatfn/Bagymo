@@ -1,6 +1,6 @@
 """Catalog serializers."""
 from rest_framework import serializers
-from .models import Category, Venue, Offer
+from .models import Category, Venue, Offer, VenueGenderSlot
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -19,17 +19,29 @@ class OfferSerializer(serializers.ModelSerializer):
         read_only_fields = ("venue",)
 
 
+class VenueGenderSlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VenueGenderSlot
+        fields = ("id", "day_of_week", "start_time", "end_time", "gender", "is_active")
+
+
 class VenueSerializer(serializers.ModelSerializer):
     offers = OfferSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source="category.name_en", read_only=True)
     category_slug = serializers.CharField(source="category.slug", read_only=True)
+    gender_slots = VenueGenderSlotSerializer(many=True, read_only=True)
+    gender_for_now = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
         fields = ("id", "name", "category", "category_name", "category_slug", "address", "lat", "lng",
-                  "district", "city", "gender_policy", "description", "phone", "owner_name",
+                  "district", "city", "gender_policy", "gender_for_now", "gender_slots",
+                  "description", "phone", "owner_name",
                   "offers", "status", "is_verified", "created_at")
         read_only_fields = ("status", "is_verified", "created_at")
+
+    def get_gender_for_now(self, obj):
+        return obj.gender_for_now()
 
 
 class VenueOnboardingSerializer(serializers.ModelSerializer):

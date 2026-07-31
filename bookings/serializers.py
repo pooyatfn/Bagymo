@@ -16,6 +16,12 @@ class BookingCreateSerializer(serializers.Serializer):
         # enforce company × venue access
         if not VenueCompanyAccess.objects.filter(venue=offer.venue, company=user.company, is_active=True).exists():
             raise serializers.ValidationError("This venue is not contracted for your company.")
+        # enforce gender policy
+        if user.gender:
+            current_gender = offer.venue.gender_for_now()
+            if current_gender != "mixed" and current_gender != user.gender:
+                gender_label = "مردانه" if current_gender == "male" else "زنانه"
+                raise serializers.ValidationError(f"این باشگاه در حال حاضر {gender_label} است.")
         # reserve_booking atomically debits budget + creates booking
         booking = reserve_booking(user, offer)
         attrs["booking"] = booking

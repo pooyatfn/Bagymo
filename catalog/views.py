@@ -14,7 +14,7 @@ from core.sms import send_sms
 
 
 class VenueViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Venue.objects.filter(status=Venue.Status.ACTIVE).select_related("category").prefetch_related("offers")
+    queryset = Venue.objects.filter(status=Venue.Status.ACTIVE).select_related("category").prefetch_related("offers", "gender_slots")
     serializer_class = VenueSerializer
 
     def get_queryset(self):

@@ -53,9 +53,10 @@ export default function DiscoverPage() {
   const filtered = venues.filter((v: any) => {
     const matchesSearch = !search || v.name?.includes(search) || v.district?.includes(search);
     if (!matchesSearch) return false;
-    if (!userGender) return v.gender_policy === "mixed";
-    if (userGender === "male") return v.gender_policy === "mixed" || v.gender_policy === "male";
-    if (userGender === "female") return v.gender_policy === "mixed" || v.gender_policy === "female";
+    const currentGender = v.gender_for_now || v.gender_policy;
+    if (!userGender) return currentGender === "mixed";
+    if (userGender === "male") return currentGender === "mixed" || currentGender === "male";
+    if (userGender === "female") return currentGender === "mixed" || currentGender === "female";
     return true;
   });
 
@@ -119,8 +120,8 @@ export default function DiscoverPage() {
                 <h3 className="font-semibold text-gray-900 truncate">{v.name}</h3>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{v.category_name}</span>
-                  {v.gender_policy === "male" && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">مردانه</span>}
-                  {v.gender_policy === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">زنانه</span>}
+                  {(v.gender_for_now || v.gender_policy) === "male" && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">مردانه</span>}
+                  {(v.gender_for_now || v.gender_policy) === "female" && <span className="rounded-full bg-pink-50 px-2 py-0.5 text-xs font-medium text-pink-700">زنانه</span>}
                 </div>
               </div>
               <p className="text-sm text-gray-500">{v.district} &middot; {v.city}</p>
@@ -142,7 +143,41 @@ export default function DiscoverPage() {
                 <button onClick={() => setSelectedVenue(null)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
               </div>
               <p className="mb-1 text-sm text-gray-500">{selectedVenue.district} &middot; {selectedVenue.city}</p>
-              {selectedVenue.address && <p className="mb-4 text-sm text-gray-400">{selectedVenue.address}</p>}
+              {selectedVenue.address && <p className="mb-3 text-sm text-gray-400">{selectedVenue.address}</p>}
+
+              {/* Gender schedule */}
+              {selectedVenue.gender_slots && selectedVenue.gender_slots.length > 0 && (
+                <div className="mb-4 rounded-lg bg-gray-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-gray-600">زمان‌بندی جنسیت:</p>
+                  <div className="space-y-1">
+                    {(() => {
+                      const dayMap: Record<string, string> = {sat:"شنبه",sun:"یکشنبه",mon:"دوشنبه",tue:"سه‌شنبه",wed:"چهارشنبه",thu:"پنجشنبه",fri:"جمعه"};
+                      const grouped: Record<string, any[]> = {};
+                      selectedVenue.gender_slots.forEach((s: any) => {
+                        if (!grouped[s.day_of_week]) grouped[s.day_of_week] = [];
+                        grouped[s.day_of_week].push(s);
+                      });
+                      return Object.entries(grouped).map(([day, slots]) => (
+                        <div key={day} className="flex items-center gap-2 text-xs">
+                          <span className="font-medium text-gray-700 w-20">{dayMap[day] || day}</span>
+                          {slots.map((s: any, i: number) => (
+                            <span key={i} className={`rounded px-1.5 py-0.5 ${s.gender === "male" ? "bg-blue-100 text-blue-700" : s.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-700"}`}>
+                              {s.start_time?.slice(0,5)}-{s.end_time?.slice(0,5)} {s.gender === "male" ? "مرد" : s.gender === "female" ? "زن" : "مختلط"}
+                            </span>
+                          ))}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+              {!selectedVenue.gender_slots?.length && selectedVenue.gender_policy !== "mixed" && (
+                <div className="mb-4 rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-600">
+                    سیاست جنسیت: {selectedVenue.gender_policy === "male" ? "مردانه" : "زنانه"}
+                  </p>
+                </div>
+              )}
 
               {offers.length === 0 ? (
                 <p className="py-8 text-center text-gray-400">آفری موجود نیست.</p>

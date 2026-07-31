@@ -11,15 +11,51 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.models import User
-from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess
+from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot
 from billing.services import reserve_booking
 
 
 SAMPLE_GYMS = [
     {"name": "Flex Gym Tehran", "address": "Valiasr St, Tehran", "lat": 35.6892, "lng": 51.3890, "phone": "021-91000001", "district": " مرکزی", "city": "Tehran", "gender_policy": "mixed"},
-    {"name": "Champion Fitness", "address": "Niavaran, Tehran", "lat": 35.8123, "lng": 51.4478, "phone": "021-91000002", "district": "شمال", "city": "Tehran", "gender_policy": "male"},
-    {"name": "BodySpace Arena", "address": "Mirdamad, Tehran", "lat": 35.7664, "lng": 51.4121, "phone": "021-91000003", "district": "میرداماد", "city": "Tehran", "gender_policy": "female"},
+    {"name": "Champion Fitness", "address": "Niavaran, Tehran", "lat": 35.8123, "lng": 51.4478, "phone": "021-91000002", "district": "شمال", "city": "Tehran", "gender_policy": "mixed"},
+    {"name": "BodySpace Arena", "address": "Mirdamad, Tehran", "lat": 35.7664, "lng": 51.4121, "phone": "021-91000003", "district": "میرداماد", "city": "Tehran", "gender_policy": "mixed"},
 ]
+
+# Gender slots: time-based gender policies per venue
+# Champion: male mornings, female afternoons (weekdays)
+# BodySpace: female mornings, mixed evenings (weekdays)
+GENDER_SLOTS = {
+    "Champion Fitness": [
+        {"day": "sat", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "sat", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "sun", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "sun", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "mon", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "mon", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "tue", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "tue", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "wed", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "wed", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "thu", "start": "06:00", "end": "14:00", "gender": "male"},
+        {"day": "thu", "start": "14:00", "end": "22:00", "gender": "female"},
+        {"day": "fri", "start": "08:00", "end": "22:00", "gender": "mixed"},
+    ],
+    "BodySpace Arena": [
+        {"day": "sat", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "sat", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "sun", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "sun", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "mon", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "mon", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "tue", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "tue", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "wed", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "wed", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "thu", "start": "06:00", "end": "14:00", "gender": "female"},
+        {"day": "thu", "start": "14:00", "end": "22:00", "gender": "mixed"},
+        {"day": "fri", "start": "08:00", "end": "22:00", "gender": "mixed"},
+    ],
+}
 OFFERS = [
     ("1h gym access", 500_000, 60),
     ("30min gym", 300_000, 30),
@@ -75,6 +111,13 @@ class Command(BaseCommand):
                         venue_payout=int(price * Decimal("0.94")), duration_minutes=dur, is_active=True
                     )
             VenueCompanyAccess.objects.get_or_create(venue=venue, company=company, defaults={})
+            # create gender slots
+            for slot in GENDER_SLOTS.get(gm["name"], []):
+                VenueGenderSlot.objects.get_or_create(
+                    venue=venue, day_of_week=slot["day"],
+                    start_time=slot["start"], end_time=slot["end"],
+                    defaults={"gender": slot["gender"]},
+                )
 
         # venue staff
         v = Venue.objects.first()
