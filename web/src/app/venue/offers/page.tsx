@@ -16,6 +16,9 @@ export default function VenueOffersPage() {
   const [form, setForm] = useState({ name: "", price: "", duration_minutes: "60", description: "", gender_restriction: "mixed" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [timeslots, setTimeslots] = useState<any[]>([]);
+  const [slotForm, setSlotForm] = useState({ date: "", start_time: "", end_time: "", capacity: "10" });
 
   const load = () => {
     if (!user) return;
@@ -23,6 +26,11 @@ export default function VenueOffersPage() {
   };
 
   useEffect(() => { load(); }, [user]);
+
+  const loadSlots = async (offerId: number) => {
+    const res = await api.get(`/catalog/offer-timeslots/${offerId}/`);
+    setTimeslots(res.data);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +53,23 @@ export default function VenueOffersPage() {
       setError(err.response?.data?.detail || JSON.stringify(err.response?.data) || "خطا در ایجاد آفر");
     }
     setLoading(false);
+  };
+
+  const handleCreateSlot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOffer) return;
+    try {
+      await api.post(`/catalog/offer-timeslots/${selectedOffer.id}/`, {
+        date: slotForm.date,
+        start_time: slotForm.start_time,
+        end_time: slotForm.end_time,
+        capacity: parseInt(slotForm.capacity),
+      });
+      setSlotForm({ date: "", start_time: "", end_time: "", capacity: "10" });
+      loadSlots(selectedOffer.id);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "خطا در ایجاد زمان‌بندی");
+    }
   };
 
   if (!user) return null;
@@ -125,15 +150,65 @@ export default function VenueOffersPage() {
         ) : (
           <div className="space-y-3">
             {offers.map((o: any) => (
-              <div key={o.id} className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
-                <div>
-                  <p className="font-medium text-gray-900">{o.name}</p>
-                  <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "mixed" ? "مختلط" : o.gender_restriction === "male" ? "آقایان" : "خانم‌ها"}</p>
+              <div key={o.id}>
+                <div className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
+                  <div>
+                    <p className="font-medium text-gray-900">{o.name}</p>
+                    <p className="text-sm text-gray-500">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "mixed" ? "مختلط" : o.gender_restriction === "male" ? "آقایان" : "خانم‌ها"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
+                    <p className="text-xs text-gray-400">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
+                    <button onClick={() => { setSelectedOffer(selectedOffer?.id === o.id ? null : o); loadSlots(o.id); }}
+                      className="mt-1 text-xs text-emerald-600 hover:underline">
+                      {selectedOffer?.id === o.id ? "بستن زمان‌بندی" : "زمان‌بندی"}
+                    </button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
-                  <p className="text-xs text-gray-400">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
-                </div>
+
+                {/* Timeslots for this offer */}
+                {selectedOffer?.id === o.id && (
+                  <div className="mt-2 rounded-xl bg-gray-50 p-4 border border-gray-200">
+                    <h3 className="mb-3 text-sm font-semibold text-gray-700">زمان‌بندی نوبت‌ها</h3>
+                    {timeslots.length > 0 && (
+                      <div className="mb-3 space-y-1">
+                        {timeslots.map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
+                            <span className="text-gray-600">{s.date} | {s.start_time} - {s.end_time}</span>
+                            <span className={`font-medium ${s.is_available ? "text-emerald-600" : "text-red-500"}`}>
+                              {s.capacity === 0 ? "نامحدود" : `${s.remaining} باقیمانده`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <form onSubmit={handleCreateSlot} className="flex flex-wrap gap-2 items-end">
+                      <div>
+                        <label className="text-xs text-gray-500">تاریخ</label>
+                        <input type="date" value={slotForm.date} onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })} required
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">شروع</label>
+                        <input type="time" value={slotForm.start_time} onChange={(e) => setSlotForm({ ...slotForm, start_time: e.target.value })} required
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">پایان</label>
+                        <input type="time" value={slotForm.end_time} onChange={(e) => setSlotForm({ ...slotForm, end_time: e.target.value })} required
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">ظرفیت</label>
+                        <input type="number" value={slotForm.capacity} onChange={(e) => setSlotForm({ ...slotForm, capacity: e.target.value })} min="0"
+                          className="block w-20 rounded border border-gray-300 px-2 py-1.5 text-sm" />
+                      </div>
+                      <button type="submit" className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700">
+                        افزودن
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             ))}
           </div>

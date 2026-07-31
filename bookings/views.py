@@ -56,6 +56,10 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
             balance_after=employee.remaining_budget,
             description=f"Booking cancelled: {booking.offer.name}",
         )
+        # send cancellation SMS
+        from core.sms import send_booking_cancellation
+        send_booking_cancellation(employee.phone_number, booking.venue.name, booking.price)
+
         return Response({"ok": True, "detail": "Booking cancelled, budget refunded"})
 
     @action(detail=True, methods=["post"], url_path="verify-checkin")

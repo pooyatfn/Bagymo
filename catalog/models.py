@@ -158,3 +158,38 @@ class Offer(models.Model):
 
     def __str__(self) -> str:
         return f"{self.venue}: {self.name} ({self.price:,} ﷼)"
+
+
+class TimeSlot(models.Model):
+    """A bookable time slot for an offer on a specific date.
+    Tracks capacity to prevent overbooking."""
+    offer = models.ForeignKey(Offer, on_delete=models.CASCADE, related_name="time_slots")
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    capacity = models.PositiveSmallIntegerField(default=0)  # 0 = unlimited
+    booked_count = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "catalog_timeslot"
+        unique_together = ("offer", "date", "start_time")
+        indexes = [models.Index(fields=["offer", "date", "start_time"])]
+
+    def __str__(self):
+        return f"{self.offer} {self.date} {self.start_time}-{self.end_time}"
+
+    @property
+    def is_available(self) -> bool:
+        if not self.is_active:
+            return False
+        if self.capacity == 0:
+            return True
+        return self.booked_count < self.capacity
+
+    @property
+    def remaining_capacity(self) -> int:
+        if self.capacity == 0:
+            return 999
+        return max(0, self.capacity - self.booked_count)

@@ -121,6 +121,16 @@ def reserve_booking(employee, offer):
         )
         # cache the code→booking for fast staff verify (QR/scanner)
         cache.set(f"checkin:{booking.check_in_code}", booking.id, timeout=ttl_minutes * 120)
+
+        # send booking confirmation SMS
+        from core.sms import send_booking_confirmation
+        send_booking_confirmation(
+            employee.phone_number,
+            offer.venue.name,
+            offer.name,
+            booking.check_in_code,
+        )
+
         return booking
 
 
@@ -172,6 +182,10 @@ def mark_checked_in(booking, code, staff_code, request):
     booking.status = Booking.Status.CHECKED_IN
     booking.checked_in_at = timezone.now()
     booking.save(update_fields=["status", "checked_in_at", "staff_code", "geo_verified"])
+
+    # send check-in confirmation SMS
+    from core.sms import send_checkin_confirmation
+    send_checkin_confirmation(booking.employee.phone_number, booking.venue.name)
 
     # queue settlement aggregation
     from billing.tasks import aggregate_venue_settlement

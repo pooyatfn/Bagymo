@@ -36,17 +36,10 @@ class OTPRequestView(generics.GenericAPIView):
             return Response({"detail": "OTP sent (dev code printed)."}, status=status.HTTP_200_OK)
 
         try:
-            from kavenegar import KavenegarAPI, APIException, HTTPException
-            api = KavenegarAPI(settings.KAVENEGAR_API_KEY)
-            params = {
-                "receptor": phone,
-                "token": code,
-                "sender": settings.KAVENEGAR_SENDER or "",
-                "template": "verify",
-            }
-            api.call("message.send", params)
+            from core.sms import send_otp_sms
+            send_otp_sms(phone, code)
         except Exception as exc:  # noqa: BLE001
-            print(f"[OTP] Kavenegar failed: {exc}")
+            print(f"[OTP] SMS failed: {exc}")
             # still proceed in dev-like fallback for local
         return Response({"detail": "OTP sent."}, status=status.HTTP_200_OK)
 

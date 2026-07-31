@@ -4,12 +4,13 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Venue, Offer, Category
+from .models import Venue, Offer, Category, TimeSlot
 from .serializers import (
     VenueSerializer, OfferSerializer, CategorySerializer,
     VenueOnboardingSerializer, OfferCreateSerializer,
 )
-from core.permissions import IsVenueStaff
+from core.permissions import IsVenueStaff, IsAdmin
+from core.sms import send_sms
 
 
 class VenueViewSet(viewsets.ReadOnlyModelViewSet):
@@ -61,6 +62,11 @@ def register_venue(request):
     user.role = "venue_staff"
     user.venue = venue
     user.save(update_fields=["role", "venue"])
+    # notify admin
+    from accounts.models import User
+    admins = User.objects.filter(role="admin")
+    for admin in admins:
+        send_sms(admin.phone_number, f"باجم: باشگاه جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
     return Response(VenueSerializer(venue).data, status=status.HTTP_201_CREATED)
 
 
@@ -108,3 +114,98 @@ def venue_profile_update(request):
         setattr(user.venue, k, v)
     user.venue.save()
     return Response(VenueSerializer(user.venue).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def pending_venues(request):
+    """Admin: list pending venues."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    venues = Venue.objects.filter(status="pending").select_related("category")
+    return Response(VenueSerializer(venues, many=True).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def approve_venue(request, venue_id):
+    """Admin: approve a pending venue."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    try:
+        venue = Venue.objects.get(pk=venue_id)
+    except Venue.DoesNotExist:
+        return Response({"detail": "venue not found"}, status=404)
+    venue.status = Venue.Status.ACTIVE
+    venue.is_verified = True
+    venue.save(update_fields=["status", "is_verified"])
+    # notify venue staff
+    staff = venue.staff.first()
+    if staff:
+        send_sms(staff.phone_number, f"باجم: باشگاه «{venue.name}» تایید شد! اکنون می‌توانید آفر ایجاد کنید.")
+    return Response({"ok": True, "detail": "Venue approved"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reject_venue(request, venue_id):
+    """Admin: reject a pending venue."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    try:
+        venue = Venue.objects.get(pk=venue_id)
+    except Venue.DoesNotExist:
+        return Response({"detail": "venue not found"}, status=404)
+    reason = request.data.get("reason", "")
+    venue.status = Venue.Status.SUSPENDED
+    venue.save(update_fields=["status"])
+    staff = venue.staff.first()
+    if staff:
+        send_sms(staff.phone_number, f"باجم: باشگاه «{venue.name}» رد شد. دلیل: {reason}")
+    return Response({"ok": True, "detail": "Venue rejected"})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def offer_timeslots(request, offer_id):
+    """List or create timeslots for an offer."""
+    try:
+        offer = Offer.objects.get(pk=offer_id)
+    except Offer.DoesNotExist:
+        return Response({"detail": "offer not found"}, status=404)
+
+    if request.method == "GET":
+        date_from = request.query_params.get("date")
+        qs = TimeSlot.objects.filter(offer=offer, is_active=True)
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        return Response([{
+            "id": s.id, "date": s.date, "start_time": s.start_time, "end_time": s.end_time,
+            "capacity": s.capacity, "booked_count": s.booked_count,
+            "remaining": s.remaining_capacity, "is_available": s.is_available,
+        } for s in qs.order_by("date", "start_time")])
+
+    # POST: create timeslot
+    user = request.user
+    if user.role != "venue_staff" or not user.venue:
+        return Response({"detail": "venue staff only"}, status=403)
+    if offer.venue != user.venue:
+        return Response({"detail": "not your offer"}, status=403)
+
+    from rest_framework import serializers as drf_serializers
+    class SlotSerializer(drf_serializers.Serializer):
+        date = drf_serializers.DateField()
+        start_time = drf_serializers.TimeField()
+        end_time = drf_serializers.TimeField()
+        capacity = drf_serializers.IntegerField(default=0, min_value=0)
+
+    ser = SlotSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    slot, created = TimeSlot.objects.get_or_create(
+        offer=offer, date=ser.validated_data["date"], start_time=ser.validated_data["start_time"],
+        defaults={"end_time": ser.validated_data["end_time"], "capacity": ser.validated_data["capacity"]},
+    )
+    if not created:
+        return Response({"detail": "timeslot already exists"}, status=400)
+    return Response({"id": slot.id, "date": slot.date, "start_time": slot.start_time,
+                     "end_time": slot.end_time, "capacity": slot.capacity}, status=201)
