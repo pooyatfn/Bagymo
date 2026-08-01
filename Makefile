@@ -1,6 +1,5 @@
 # bagymo.ir - developer Makefile
-ENV ?= . .venv/bin/activate
-PY ?= $(CURDIR)/venv/bin/python
+PY ?= $(CURDIR)/.venv/bin/python
 WEB := $(CURDIR)/web
 
 .PHONY: help install-dev migrate seed run-dev run-web test lint check
@@ -16,10 +15,9 @@ help:
 	@echo "make check         -> python manage.py check"
 
 install-dev:
-	python3 -m venv venv
-	./venv/bin/pip install --upgrade pip setuptools wheel
-	./venv/bin/pip install django djangorestframework djangorestframework-simplejwt \
-		django-celery-beat celery redis python-dotenv kavenegar requests pytest pytest-django
+	python3 -m venv .venv
+	./.venv/bin/pip install --upgrade pip setuptools wheel
+	./.venv/bin/pip install -r requirements.txt
 	@command -v nvm >/dev/null && (export NVM_DIR="$$HOME/.nvm"; . $$NVM_DIR/nvm.sh; nvm install 20 >/dev/null; : ) || true
 
 migrate:
@@ -39,7 +37,7 @@ test:
 	$(PY) -m pytest -q
 
 lint:
-	@command -v ./venv/bin/ruff >/dev/null || ./venv/bin/pip install ruff
-	./venv/bin/ruff check .
+	@command -v ./.venv/bin/ruff >/dev/null || ./.venv/bin/pip install ruff
+	./.venv/bin/ruff check .
 	check:
 	$(PY) manage.py check

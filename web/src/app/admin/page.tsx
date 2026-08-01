@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import {
   Button,
@@ -19,26 +20,30 @@ import { apiErrorDetail } from "@/lib/errors";
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const isAdmin = !!user && user.role === "admin";
 
   const pendingUrl = isAdmin ? "/catalog/pending-venues/" : null;
   const venuesUrl = isAdmin ? "/catalog/venues/" : null;
   const bookingsUrl = isAdmin ? "/billing/company-bookings/" : null;
   const companiesUrl = isAdmin ? "/catalog/admin-companies/" : null;
+  const pendingCompaniesUrl = isAdmin ? "/catalog/pending-companies/" : null;
 
   const { data: pendingVenues, loading: pvLoading, refetch: pvRefetch } = useApi<Venue[]>(pendingUrl);
   const { data: venues, loading: vLoading, refetch: vRefetch } = useApi<Venue[]>(venuesUrl);
   const { data: bookings, loading: bLoading, refetch: bRefetch } = useApi<Booking[]>(bookingsUrl);
   const { data: companies, loading: cLoading, refetch: cRefetch } = useApi<AdminCompany[]>(companiesUrl);
+  const { data: pendingCompanies, loading: pcLoading, refetch: pcRefetch } = useApi<any[]>(pendingCompaniesUrl);
 
   const refetchAll = () => {
     pvRefetch();
     vRefetch();
     bRefetch();
     cRefetch();
+    pcRefetch();
   };
 
-  const loading = pvLoading || vLoading || bLoading || cLoading;
+  const loading = pvLoading || vLoading || bLoading || cLoading || pcLoading;
 
   const [tab, setTab] = useState<"pending" | "venues" | "companies" | "bookings">("pending");
   const [rejectReason, setRejectReason] = useState("");
@@ -46,10 +51,20 @@ export default function AdminPage() {
   const [venueSearch, setVenueSearch] = useState("");
   const [venueStatusFilter, setVenueStatusFilter] = useState("all");
   const [venueCategoryFilter, setVenueCategoryFilter] = useState("all");
+  const [showCompanyDetails, setShowCompanyDetails] = useState<any | null>(null);
 
   const handleApprove = async (id: number) => {
     try {
       await api.post(`/catalog/venues/${id}/approve/`);
+      refetchAll();
+    } catch (err) {
+      alert(apiErrorDetail(err, "خطا"));
+    }
+  };
+
+  const handleApproveCompany = async (id: number) => {
+    try {
+      await api.post(`/catalog/companies/${id}/approve/`);
       refetchAll();
     } catch (err) {
       alert(apiErrorDetail(err, "خطا"));
@@ -80,6 +95,7 @@ export default function AdminPage() {
   }
 
   const pendingList = pendingVenues || [];
+  const pendingCompanyList = pendingCompanies || [];
   const venueList = venues || [];
   const bookingList = bookings || [];
   const companyList = companies || [];
@@ -148,8 +164,8 @@ export default function AdminPage() {
           {/* Tabs */}
           <div className="flex flex-wrap gap-2">
             {[
-              { key: "pending", label: `در انتظار تایید (${pendingList.length})` },
-              { key: "venues", label: "مکان‌ها" },
+              { key: "pending", label: `در انتظار تایید (${pendingList.length + pendingCompanyList.length})` },
+              { key: "venues", label: `مکان‌ها (${venueList.length})` },
               { key: "companies", label: `شرکت‌ها (${companyList.length})` },
               { key: "bookings", label: "رزروها" },
             ].map((t) => (
@@ -164,53 +180,106 @@ export default function AdminPage() {
             ))}
           </div>
 
-          {/* Pending Venues Tab */}
+          {/* Pending Tab */}
           {tab === "pending" && (
             <Card className="p-0">
-              {pendingList.length === 0 ? (
+              {(pendingList.length === 0 && pendingCompanyList.length === 0) ? (
                 <EmptyState
-                  title="مکانی در انتظار تایید نیست"
+                  title="موردی در انتظار تایید نیست"
                   description="همه درخواست‌ها بررسی شده‌اند."
                 />
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {pendingList.map((v) => (
-                    <div
-                      key={v.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5"
-                    >
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{v.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {v.category_name} · {v.district} · {v.city}
-                        </p>
-                        {v.address && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            {v.address}
-                          </p>
-                        )}
-                        {v.phone && (
-                          <p className="text-xs text-gray-600">تلفن: {v.phone}</p>
-                        )}
+                  {pendingList.length > 0 && (
+                    <>
+                      <div className="px-5 py-3 bg-amber-50 border-b border-gray-100 font-semibold text-amber-700">
+                        مکان‌های در انتظار تایید ({pendingList.length})
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleApprove(v.id)}
-                        >
-                          تایید
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setRejectId(v.id)}
-                        >
-                          رد
-                        </Button>
+                      <div className="divide-y divide-gray-100">
+                        {pendingList.map((v) => (
+                          <div
+                            key={v.id}
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5"
+                          >
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{v.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {v.category_name} · {v.district} · {v.city}
+                              </p>
+                              {v.address && (
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {v.address}
+                                </p>
+                              )}
+                              {v.phone && (
+                                <p className="text-xs text-gray-600">تلفن: {v.phone}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleApprove(v.id)}
+                              >
+                                تایید
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setRejectId(v.id)}
+                              >
+                                رد
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
+                    </>
+                  )}
+                  {pendingCompanyList.length > 0 && (
+                    <>
+                      <div className="px-5 py-3 bg-amber-50 border-b border-gray-100 font-semibold text-amber-700">
+                        شرکت‌های در انتظار تایید ({pendingCompanyList.length})
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {pendingCompanyList.map((c) => (
+                          <div
+                            key={c.id}
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5"
+                          >
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{c.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {c.domain || "بدون دامنه"}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                مدیر: {c.admin_name || "تعیین نشده"} · {c.admin_phone || "بدون تلفن"}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                بودجه سالانه: {formatTomans(c.default_annual_budget)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleApproveCompany(c.id)}
+                              >
+                                تایید
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setRejectId(c.id)}
+                              >
+                                رد
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </Card>
@@ -325,13 +394,16 @@ export default function AdminPage() {
                     <th className="px-4 py-3 font-medium text-gray-600">
                       وضعیت
                     </th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      عملیات
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {companyList.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50">
+                    <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setShowCompanyDetails(c)}>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{c.name}</p>
+                        <p className="font-medium text-emerald-700 hover:underline">{c.name}</p>
                         {c.domain && (
                           <p className="text-xs text-gray-600">{c.domain}</p>
                         )}
@@ -359,12 +431,23 @@ export default function AdminPage() {
                           {c.is_active ? "فعال" : "غیرفعال"}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        {!c.is_active && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleApproveCompany(c.id); }}
+                          >
+                            فعال‌سازی
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {companyList.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-8 text-center text-gray-600"
                       >
                         شرکتی یافت نشد.
@@ -464,6 +547,76 @@ export default function AdminPage() {
                   onClick={handleReject}
                 >
                   رد
+                </Button>
+              </div>
+            </Modal>
+          )}
+
+          {/* Company Details Modal */}
+          {showCompanyDetails && (
+            <Modal
+              open={!!showCompanyDetails}
+              onClose={() => setShowCompanyDetails(null)}
+              title={`جزئیات شرکت: ${showCompanyDetails.name}`}
+            >
+              <div className="space-y-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-600">نام شرکت</p>
+                  <p className="font-medium text-gray-900">{showCompanyDetails.name}</p>
+                </div>
+                {showCompanyDetails.domain && (
+                  <div>
+                    <p className="text-xs text-gray-600">دامنه</p>
+                    <p className="font-medium text-gray-900">{showCompanyDetails.domain}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-600">کارمندان</p>
+                    <p className="font-medium text-gray-900">{showCompanyDetails.employee_count}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">تعداد رزرو</p>
+                    <p className="font-medium text-gray-900">{showCompanyDetails.total_bookings}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-600">بودجه سالانه</p>
+                    <p className="font-medium text-gray-900">{formatTomans(showCompanyDetails.default_annual_budget)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">کل هزینه</p>
+                    <p className="font-medium text-gray-900">{formatTomans(showCompanyDetails.total_spent)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">وضعیت</p>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      showCompanyDetails.is_active
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {showCompanyDetails.is_active ? "فعال" : "غیرفعال"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">تاریخ ثبت</p>
+                  <p className="font-medium text-gray-900">
+                    {new Date(showCompanyDetails.created_at).toLocaleDateString("fa-IR")}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setShowCompanyDetails(null)}
+                >
+                  بستن
                 </Button>
               </div>
             </Modal>

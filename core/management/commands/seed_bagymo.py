@@ -140,7 +140,7 @@ class Command(BaseCommand):
         # company_admin
         ca = User.objects.filter(phone_number="09120000010").first()
         if not ca:
-            ca = User.objects.create_user(phone_number="0912000010", name="HR Admin", role=User.Role.COMPANY_ADMIN,
+            ca = User.objects.create_user(phone_number="09120000010", name="HR Admin", role=User.Role.COMPANY_ADMIN,
                                           company=company, is_verified=True, is_active=True)
             ca.set_password("Admin12345")
             ca.save()
@@ -151,7 +151,7 @@ class Command(BaseCommand):
         # platform admin (is_superuser for django admin panel)
         pa = User.objects.filter(phone_number="09120000000").first()
         if not pa:
-            pa = User.objects.create_superuser(phone_number="0912000000", name="Platform Admin",
+            pa = User.objects.create_superuser(phone_number="09120000000", name="Platform Admin",
                                                role=User.Role.ADMIN, is_verified=True, is_active=True)
             pa.set_password("Admin12345")
             pa.save()
@@ -207,7 +207,7 @@ class Command(BaseCommand):
             phone = f"09120000{80 + i:03d}"
             user, created = User.objects.get_or_create(
                 phone_number=phone,
-                defaults={"name": f"Staff {venue.name}", "role": User.Role.VENUE_STAFF, "venue": venue,
+                defaults={"name": f"{venue.name}", "role": User.Role.VENUE_STAFF, "venue": venue,
                           "is_verified": True, "is_active": True}
             )
             if not created:
