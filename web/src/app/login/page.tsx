@@ -147,25 +147,24 @@ function LoginInner() {
             <SparklesIcon className="h-6 w-6" />
             <span>باجیمو</span>
           </Link>
-          <div className="flex items-center gap-3 text-sm">
-            <Link
-              href="/login?redirect=/venue/register"
-              className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-            >
-              ثبت باشگاه جدید
-            </Link>
-            {selectedRole === "company_admin" && (
-              <>
-                <span className="text-gray-300">|</span>
-                <Link
-                  href="/company/register"
-                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-                >
-                  ثبت شرکت جدید
-                </Link>
-              </>
-            )}
-          </div>
+           <div className="flex items-center gap-3 text-sm">
+             {selectedRole === "venue_staff" && (
+               <Link
+                 href="/login?redirect=/venue/register"
+                 className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+               >
+                 ثبت باشگاه جدید
+               </Link>
+             )}
+             {selectedRole === "company_admin" && (
+               <Link
+                 href="/company/register"
+                 className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+               >
+                 ثبت شرکت جدید
+               </Link>
+             )}
+           </div>
         </div>
 
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
