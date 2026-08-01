@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 import { Input } from "@/components/ui";
@@ -10,7 +10,7 @@ import { SparklesIcon } from "@/components/icons";
 export default function LoginPage() {
   const { login, verify } = useAuth();
   const router = useRouter();
-  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const searchParams = useSearchParams();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [phase, setPhase] = useState<"phone" | "otp">("phone");
