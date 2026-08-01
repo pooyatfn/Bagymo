@@ -148,12 +148,14 @@ function LoginInner() {
             <span>باجیمو</span>
           </Link>
 <div className="flex items-center gap-3 text-sm">
-              <Link
-                href="/venue/register"
-                className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-              >
-                ثبت نام مجتمع جدید
-              </Link>
+              {selectedRole === "venue_staff" && (
+                <Link
+                  href="/venue/register"
+                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                >
+                  ثبت نام مجتمع جدید
+                </Link>
+              )}
               {selectedRole === "company_admin" && (
                 <Link
                   href="/company/register"
