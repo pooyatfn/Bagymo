@@ -35,14 +35,9 @@ export function LandingHeader() {
               <Link href={dashboardPath(user.role)}>داشبورد</Link>
             </Button>
           ) : (
-            <>
-              <Link href="/login" className="hidden text-sm font-medium text-gray-600 hover:text-emerald-700 sm:inline">
-                ورود
-              </Link>
-              <Button variant="primary" size="sm" asChild>
-                <Link href="/login">ثبت نام</Link>
-              </Button>
-            </>
+            <Button variant="primary" size="sm" asChild>
+              <Link href="/login">ورود / ثبت نام</Link>
+            </Button>
           )}
         </div>
       </div>

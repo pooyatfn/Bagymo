@@ -31,7 +31,7 @@ function LoginInner() {
 
   const roleLabels: Record<string, string> = {
     user: "کاربر",
-    venue_staff: "پرسنل باشگاه",
+    venue_staff: "مدیر مجتمع",
     company_admin: "مدیر شرکت",
   };
 
@@ -197,35 +197,39 @@ function LoginInner() {
             </div>
           )}
 
-           {phase === "phone" ? (
-             <form onSubmit={handleRequest} className="space-y-4">
-               <Input
-                 label="شماره تلفن"
-                 type="tel"
-                 placeholder="0912 xxx 0000"
-                 value={phone}
-                 onChange={(e) => setPhone(e.target.value)}
-                 autoComplete="tel"
-                 dir="ltr"
-                 required
-               />
-               {selectedRole === "user" && (
-                 <div className="mt-2 text-center text-sm">
-                   <button
-                     type="button"
-                     onClick={() => setPhase("email")}
-                     className="text-emerald-700 hover:underline"
-                   >
-                     ورود با ایمیل و رمز عبور
-                   </button>
-                 </div>
-               )}
-               {error && <p className="text-sm text-red-600">{error}</p>}
-               <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
-                 ارسال کد تایید
-               </Button>
-             </form>
-           ) : phase === "email" ? (
+          <div className="mt-4 text-center">
+            <Link href="/" className="text-sm text-emerald-700 hover:underline">
+              بازگشت به صفحه اصلی
+            </Link>
+          </div>
+
+          {phase === "phone" ? (
+            <form onSubmit={handleRequest} className="space-y-4">
+              <Input
+                label="شماره تلفن"
+                type="tel"
+                placeholder="0912 xxx 0000"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+                dir="ltr"
+                required
+              />
+              <div className="mt-2 text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => setPhase("email")}
+                  className="text-emerald-700 hover:underline"
+                >
+                  ورود با ایمیل و رمز عبور
+                </button>
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
+                ارسال کد تایید
+              </Button>
+            </form>
+          ) : phase === "email" ? (
              <form onSubmit={handleEmailLogin} className="space-y-4">
                <Input
                  label="ایمیل"

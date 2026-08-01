@@ -3,10 +3,8 @@ web/node_modules/
 *.pyc
 __pycache__/
 *.log
-db.sqlite3
 /staticfiles
 /media
 .env
 .idea/
 web/.next/
-web/node_modules/

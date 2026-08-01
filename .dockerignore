@@ -1,0 +1,15 @@
+Dockerfile
+docker-compose.yml
+.env
+.venv
+venv
+*.pyc
+*.pyo
+__pycache__
+*.log
+/staticfiles
+/media
+node_modules
+.next
+dist
+.git

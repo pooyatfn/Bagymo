@@ -1,0 +1,11 @@
+django>=5.0
+djangorestframework
+djangorestframework-simplejwt[crypto]
+psycopg2-binary
+redis
+django-redis
+celery
+python-dotenv
+kavenegar
+requests
+gunicorn

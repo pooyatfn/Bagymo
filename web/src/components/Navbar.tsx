@@ -41,7 +41,7 @@ const roleLabels: Record<string, string> = {
   user: "کاربر",
   company_admin: "مدیر شرکت",
   company_hr: "منابع انسانی",
-  venue_staff: "پرسنل باشگاه",
+  venue_staff: "مدیر مجتمع",
   admin: "مدیر سیستم",
 };
 
