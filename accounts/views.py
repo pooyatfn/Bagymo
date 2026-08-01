@@ -26,7 +26,7 @@ class OTPRequestView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        phone = ser.validated_data["phone_number"]
+        phone = ser.validated_data["phone_number"].strip()
         code = f"{random.randint(100000, 999999)}"
         cache.set(f"otp:{phone}", code, timeout=OTP_TTL_SECONDS)
 
@@ -50,8 +50,8 @@ class OTPVerifyView(APIView):
     def post(self, request, *args, **kwargs):
         ser = OTPVerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        phone = ser.validated_data["phone_number"]
-        code = ser.validated_data["code"]
+        phone = ser.validated_data["phone_number"].strip()
+        code = ser.validated_data["code"].strip()
         expected = cache.get(f"otp:{phone}")
         if not expected or expected != code:
             return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)

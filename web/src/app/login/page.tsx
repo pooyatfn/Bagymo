@@ -69,13 +69,14 @@ function LoginInner() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (code.length < 4) {
-      setError("کد تایید را کامل وارد کنید.");
+    const trimmedCode = code.trim();
+    if (trimmedCode.length !== 6) {
+      setError("کد تایید باید ۶ رقمی باشد.");
       return;
     }
     setLoading(true);
     try {
-      await verify(phone, code);
+      await verify(phone, trimmedCode);
       const redirect = searchParams?.get("redirect");
       if (redirect) {
         router.push(redirect);
