@@ -213,7 +213,7 @@ export default function RegisterVenuePage() {
                     name="password"
                     type="password"
                     placeholder="حداقل ۸ کاراکتر"
-                    value={form.password}
+                    value={form.password ?? ""}
                     onChange={handleChange}
                     required
                   />
@@ -222,7 +222,7 @@ export default function RegisterVenuePage() {
                     name="password_confirm"
                     type="password"
                     placeholder="تکرار رمز عبور"
-                    value={form.password_confirm}
+                    value={form.password_confirm ?? ""}
                     onChange={handleChange}
                     required
                   />

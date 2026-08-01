@@ -396,7 +396,8 @@ def approve_company(request, company_id):
     if company.status != Company.Status.PENDING:
         return Response({"detail": "company is not pending."}, status=400)
     company.status = Company.Status.ACTIVE
-    company.save(update_fields=["status"])
+    company.is_active = True
+    company.save(update_fields=["status", "is_active"])
     admin = company.users.filter(role="company_admin").first()
     if admin:
         admin.is_active = True

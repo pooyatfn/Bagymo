@@ -52,6 +52,7 @@ export default function AdminPage() {
   const [venueStatusFilter, setVenueStatusFilter] = useState("all");
   const [venueCategoryFilter, setVenueCategoryFilter] = useState("all");
   const [showCompanyDetails, setShowCompanyDetails] = useState<any | null>(null);
+  const [showVenueDetails, setShowVenueDetails] = useState<any | null>(null);
 
   const handleApprove = async (id: number) => {
     try {
@@ -337,24 +338,28 @@ export default function AdminPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredVenues.map((v) => (
-                      <tr key={v.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium text-gray-900">
-                          {v.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={v.category_name || String(v.category)} />
-                        </td>
-                        <td className="px-4 py-3 text-gray-600">
-                          {v.district} · {v.city}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={v.status} />
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredVenues.length === 0 && (
+<tbody className="divide-y divide-gray-100">
+                      {filteredVenues.map((v) => (
+                        <tr
+                          key={v.id}
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setShowVenueDetails(v)}
+                        >
+                          <td className="px-4 py-3 font-medium text-emerald-700 hover:underline">
+                            {v.name}
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={v.category_name || String(v.category)} />
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {v.district} · {v.city}
+                          </td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={v.status} />
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredVenues.length === 0 && (
                       <tr>
                         <td
                           colSpan={4}
@@ -615,6 +620,81 @@ export default function AdminPage() {
                   size="sm"
                   className="flex-1"
                   onClick={() => setShowCompanyDetails(null)}
+                >
+                  بستن
+                </Button>
+              </div>
+            </Modal>
+          )}
+
+          {/* Venue Details Modal */}
+          {showVenueDetails && (
+            <Modal
+              open={!!showVenueDetails}
+              onClose={() => setShowVenueDetails(null)}
+              title={`جزئیات مجتمع: ${showVenueDetails.name}`}
+            >
+              <div className="space-y-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-600">نام مجتمع</p>
+                  <p className="font-medium text-gray-900">{showVenueDetails.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-600">دسته‌بندی</p>
+                    <p className="font-medium text-gray-900">{showVenueDetails.category_name || String(showVenueDetails.category)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">شهر</p>
+                    <p className="font-medium text-gray-900">{showVenueDetails.city}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-600">منطقه</p>
+                    <p className="font-medium text-gray-900">{showVenueDetails.district}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">تلفن</p>
+                    <p className="font-medium text-gray-900">{showVenueDetails.phone || "ثبت نشده"}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">آدرس</p>
+                  <p className="font-medium text-gray-900">{showVenueDetails.address || "ثبت نشده"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">سیاست جنسیتی</p>
+                  <p className="font-medium text-gray-900">{showVenueDetails.gender_policy}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">وضعیت</p>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      showVenueDetails.status === "active"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : showVenueDetails.status === "pending"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-600"
+                    }`}
+                  >
+                    {showVenueDetails.status === "active" ? "فعال" :
+                     showVenueDetails.status === "pending" ? "در انتظار" : "غیرفعال"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">تاریخ ثبت</p>
+                  <p className="font-medium text-gray-900">
+                    {new Date(showVenueDetails.created_at).toLocaleDateString("fa-IR")}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setShowVenueDetails(null)}
                 >
                   بستن
                 </Button>
