@@ -16,7 +16,7 @@ class Command(BaseCommand):
         today = date.today()
         affected = 0
         with transaction.atomic():
-            for u in User.objects.select_for_update().filter(role="employee", is_active=True):
+            for u in User.objects.select_for_update().filter(role="user", is_active=True):
                 if u.fiscal_year_start is None:
                     continue
                 # fiscal year rolls over if today is >= start + 1 year

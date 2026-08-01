@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_celery_beat",
+    "django_redis",
     # local
     "core",
     "accounts",
@@ -77,38 +78,33 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database -------------------------------------------------------------
 # PostGIS is a future enhancement for production geo queries.
 # For now the model stores lat/lng in FloatFields so plain Postgres works.
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-if POSTGRES_HOST:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "HOST": POSTGRES_HOST,
-            "PORT": os.getenv("POSTGRES_PORT", "5432"),
-            "NAME": os.getenv("POSTGRES_DB", "bagymo"),
-            "USER": os.getenv("POSTGRES_USER", "bagymo"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        }
-    }
-else:
-    # local dev: zero-setup sqlite
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "bagymo")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "bagymo")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "bagymo123")
 
-# Django needs GIS extensions even when using sqlite fallback in dev
-if not POSTGRES_HOST:
-    DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "HOST": POSTGRES_HOST,
+        "PORT": POSTGRES_PORT,
+        "NAME": POSTGRES_DB,
+        "USER": POSTGRES_USER,
+        "PASSWORD": POSTGRES_PASSWORD,
+        "CONN_MAX_AGE": 60,
+    }
+}
 
 # Cache + Celery -------------------------------------------------------
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
 CACHES = {
     "default": {
-        # local dev uses locmem so no Redis server is required; production sets REDIS_URL
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-bagymo-cache",
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 CELERY_BROKER_URL = REDIS_URL

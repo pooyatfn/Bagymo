@@ -13,7 +13,7 @@ class TestResetBudgets:
     def test_reset_due(self):
         """Employee whose fiscal year started 13 months ago gets reset."""
         u = User.objects.create_user(
-            phone_number="0912333333", name="OldEmp", role="employee",
+            phone_number="0912333333", name="OldEmp", role="user",
             annual_budget=8_000_000, remaining_budget=2_000_000,
             fiscal_year_start=date.today() - timedelta(days=400),
             is_verified=True, is_active=True
@@ -26,7 +26,7 @@ class TestResetBudgets:
     def test_no_reset_when_not_due(self):
         """Employee whose fiscal year started today does NOT get reset."""
         u = User.objects.create_user(
-            phone_number="0912444444", name="NewEmp", role="employee",
+            phone_number="0912444444", name="NewEmp", role="user",
             annual_budget=8_000_000, remaining_budget=3_000_000,
             fiscal_year_start=date.today(),
             is_verified=True, is_active=True

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib import messages
 from .models import Category, Company, Venue, VenueCompanyAccess
 from bookings.models import Booking
 from billing.models import BudgetLedger, SettlementBatch, Invoice
@@ -11,8 +12,28 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ("name", "domain", "default_annual_budget", "is_active")
+    list_display = ("name", "domain", "default_annual_budget", "is_active", "status", "created_at")
+    list_filter = ("status", "is_active", "created_at")
     search_fields = ("name", "domain")
+    actions = ["approve", "suspend", "reject"]
+
+    def approve(self, request, queryset):
+        count = queryset.filter(status=Company.Status.PENDING).update(status=Company.Status.ACTIVE, is_active=True)
+        from accounts.models import User
+        for company in queryset.filter(status=Company.Status.ACTIVE):
+            company.users.filter(role="company_admin").update(is_active=True)
+        self.message_user(request, f"{count} company/companies approved.", messages.SUCCESS)
+    approve.short_description = "Approve selected pending companies"
+
+    def suspend(self, request, queryset):
+        queryset.update(status=Company.Status.SUSPENDED, is_active=False)
+        self.message_user(request, f"{queryset.count()} company/companies suspended.", messages.SUCCESS)
+    suspend.short_description = "Suspend selected companies"
+
+    def reject(self, request, queryset):
+        queryset.update(status=Company.Status.SUSPENDED, is_active=False)
+        self.message_user(request, f"{queryset.count()} company/companies rejected (suspended).", messages.SUCCESS)
+    reject.short_description = "Reject selected companies"
 
 
 @admin.register(Venue)

@@ -92,7 +92,7 @@ def venue_offers(request, offer_id=None):
             return Response(OfferSerializer(ser.instance).data)
 
         if request.method == "DELETE":
-            if offer.bookings.filter(status__in=["reserved", "paid", "checkedin"]).exists():
+            if offer.bookings.filter(status__in=["reserved", "paid", "checked_in"]).exists():
                 return Response({"detail": "cannot delete offer with active bookings"}, status=400)
             offer.delete()
             return Response(status=204)
@@ -244,8 +244,8 @@ def venue_ratings(request, venue_id):
 def create_venue_rating(request, venue_id):
     """Employee: rate a venue (must have a completed/checked-in booking there)."""
     user = request.user
-    if user.role != "employee":
-        return Response({"detail": "employees only"}, status=403)
+    if user.role != "user":
+        return Response({"detail": "users only"}, status=403)
 
     try:
         venue = Venue.objects.get(pk=venue_id)
@@ -254,7 +254,7 @@ def create_venue_rating(request, venue_id):
 
     from bookings.models import Booking
     has_booking = Booking.objects.filter(
-        employee=user, venue=venue, status__in=["checkedin", "completed"]
+        employee=user, venue=venue, status__in=["checked_in", "completed"]
     ).exists()
     if not has_booking:
         return Response({"detail": "you must have a completed reservation at this venue"}, status=400)
@@ -279,13 +279,14 @@ def company_info(request):
     if not user.company:
         return Response({"detail": "no company assigned"}, status=404)
     company = user.company
-    employee_count = company.users.filter(role="employee").count()
+    employee_count = company.users.filter(role="user").count()
     return Response({
         "id": company.id,
         "name": company.name,
         "default_annual_budget": company.default_annual_budget,
         "employee_count": employee_count,
         "is_active": company.is_active,
+        "status": company.status,
         "created_at": company.created_at,
     })
 
@@ -300,7 +301,7 @@ def admin_companies(request):
     companies = Company.objects.all().order_by("-created_at")
     data = []
     for c in companies:
-        employees = c.users.filter(role="employee")
+        employees = c.users.filter(role="user")
         emp_count = employees.count()
         from bookings.models import Booking
         bookings = Booking.objects.filter(company=c)
@@ -315,6 +316,83 @@ def admin_companies(request):
             "total_bookings": total_bookings,
             "total_spent": total_spent,
             "is_active": c.is_active,
+            "status": c.status,
             "created_at": c.created_at,
         })
     return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def pending_companies(request):
+    """Admin: list pending companies awaiting approval."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    from .models import Company
+    companies = Company.objects.filter(status=Company.Status.PENDING).order_by("-created_at")
+    data = []
+    for c in companies:
+        admin = c.users.filter(role="company_admin").first()
+        data.append({
+            "id": c.id,
+            "name": c.name,
+            "domain": c.domain,
+            "default_annual_budget": c.default_annual_budget,
+            "admin_name": admin.name if admin else None,
+            "admin_phone": admin.phone_number if admin else None,
+            "created_at": c.created_at,
+        })
+    return Response(data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def approve_company(request, company_id):
+    """Admin: approve a pending company. Activates the company_admin user."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    from .models import Company
+    from accounts.models import User
+    try:
+        company = Company.objects.get(pk=company_id)
+    except Company.DoesNotExist:
+        return Response({"detail": "company not found"}, status=404)
+    if company.status != Company.Status.PENDING:
+        return Response({"detail": "company is not pending."}, status=400)
+    company.status = Company.Status.ACTIVE
+    company.save(update_fields=["status"])
+    admin = company.users.filter(role="company_admin").first()
+    if admin:
+        admin.is_active = True
+        admin.save(update_fields=["is_active"])
+        send_sms(admin.phone_number, f"باجیمو: شرکت «{company.name}» تأیید شد! اکنون می‌توانید وارد شوید.")
+    return Response({"ok": True, "detail": "Company approved"})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reject_company(request, company_id):
+    """Admin: reject (suspend) a pending company."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    from .models import Company
+    from accounts.models import User
+    try:
+        company = Company.objects.get(pk=company_id)
+    except Company.DoesNotExist:
+        return Response({"detail": "company not found"}, status=404)
+    if company.status != Company.Status.PENDING:
+        return Response({"detail": "company is not pending."}, status=400)
+    reason = request.data.get("reason", "")
+    company.status = Company.Status.SUSPENDED
+    company.is_active = False
+    company.save(update_fields=["status", "is_active"])
+    admin = company.users.filter(role="company_admin").first()
+    if admin:
+        admin.is_active = False
+        admin.save(update_fields=["is_active"])
+        msg = f"باجیمو: ثبت شرکت «{company.name}» رد شد."
+        if reason:
+            msg += f" دلیل: {reason}"
+        send_sms(admin.phone_number, msg)
+    return Response({"ok": True, "detail": "Company rejected"})

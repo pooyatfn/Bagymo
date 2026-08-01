@@ -5,7 +5,8 @@ from .views import (
     VenueViewSet, CategoryViewSet, register_venue, venue_offers,
     venue_profile, venue_profile_update, approve_venue, reject_venue,
     pending_venues, offer_timeslots, venue_ratings, create_venue_rating,
-    company_info, admin_companies,
+    company_info, admin_companies, pending_companies, approve_company,
+    reject_company,
 )
 
 router = routers.DefaultRouter()
@@ -27,4 +28,7 @@ urlpatterns = [
     path("venues/<int:venue_id>/rate/", create_venue_rating, name="create-venue-rating"),
     path("company-info/", company_info, name="company-info"),
     path("admin-companies/", admin_companies, name="admin-companies"),
+    path("pending-companies/", pending_companies, name="pending-companies"),
+    path("companies/<int:company_id>/approve/", approve_company, name="approve-company"),
+    path("companies/<int:company_id>/reject/", reject_company, name="reject-company"),
 ]

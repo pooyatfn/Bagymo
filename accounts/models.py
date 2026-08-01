@@ -1,9 +1,9 @@
 """
-User model + budget fields (employee simplification).
-- phone_number is the unique login.
+User model + budget fields (user simplification).
+- phone_number is the unique login (OTP) or email+password login.
 - role drives permissions/dashboard.
 - annual_budget / remaining_budget / fiscal_year_start are kept on User
-  for the employee role (a per-company contract can override later).
+  for the user role (a per-company contract can override later).
 """
 from django.db import models
 from django.contrib.auth.base_user import AbstractBaseUser
@@ -44,27 +44,30 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     phone_number = models.CharField(max_length=16, unique=True)
+    email = models.EmailField(null=True, blank=True, unique=True, default=None)
     name = models.CharField(max_length=80, null=True, blank=True)
 
     # role
     class Role:
-        EMPLOYEE = "employee"
+        USER = "user"
         COMPANY_ADMIN = "company_admin"
+        COMPANY_HR = "company_hr"
         VENUE_STAFF = "venue_staff"
         ADMIN = "admin"
         CHOICES = [
-            (EMPLOYEE, "Employee"),
+            (USER, "User"),
             (COMPANY_ADMIN, "Company Admin"),
+            (COMPANY_HR, "Company HR"),
             (VENUE_STAFF, "Venue Staff"),
             (ADMIN, "Platform Admin"),
         ]
 
-    role = models.CharField(max_length=24, choices=Role.CHOICES, default=Role.EMPLOYEE)
+    role = models.CharField(max_length=24, choices=Role.CHOICES, default=Role.USER)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
-    # Company affiliation (used by employee + company_admin)
+    # Company affiliation (used by user + company_admin)
     company = models.ForeignKey(
         "catalog.Company",
         on_delete=models.SET_NULL,
@@ -81,18 +84,22 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="staff",
     )
 
-    # Employee wellness budget (annual, resets yearly) - simplified on User
+    # User wellness budget (annual, resets yearly) - simplified on User
     annual_budget = models.PositiveIntegerField(default=0)  # Toman
     remaining_budget = models.PositiveIntegerField(default=0)  # Toman
     fiscal_year_start = models.DateField(default=timezone.now)
 
-    # Wallet (recharged via gateway in Step 6) - kept for completeness
-    wallet_balance = models.PositiveIntegerField(default=0)  # Toman, unused in v1
+    # Wallet (recharged via gateway in Step 6) - separate from budget
+    wallet_balance = models.PositiveIntegerField(default=0)  # Toman, top-up via gateway
 
     # Venue / payout info
     sheba = models.CharField(max_length=26, null=True, blank=True)
 
-    # Employee gender (for venue gender-policy filtering)
+    # Email/password auth (optional; OTP is the primary login).
+    # password_hash mirrors AbstractBaseUser.password for the email/password path.
+    password_hash = models.CharField(null=True, blank=True, max_length=128)
+
+    # User gender (for venue gender-policy filtering)
     class Gender:
         MALE = "male"
         FEMALE = "female"
@@ -116,6 +123,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return f"{self.phone_number} ({self.role})"
+
+    def set_password(self, raw_password):
+        super().set_password(raw_password)
+        self.password_hash = self.password
 
     @property
     def is_budget_exhausted(self) -> bool:

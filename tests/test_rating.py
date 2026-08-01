@@ -64,7 +64,7 @@ class TestVenueRating:
         """Employee can rate a venue after a checked-in booking."""
         from rest_framework.test import APIClient
         booking = reserve_booking(employee, offer)
-        booking.status = "checkedin"
+        booking.status = "checked_in"
         booking.save(update_fields=["status"])
 
         client = APIClient()
@@ -89,7 +89,7 @@ class TestVenueRating:
         """Employee can update their existing rating."""
         from rest_framework.test import APIClient
         booking = reserve_booking(employee, offer)
-        booking.status = "checkedin"
+        booking.status = "checked_in"
         booking.save(update_fields=["status"])
 
         client = APIClient()
@@ -105,7 +105,7 @@ class TestVenueRating:
         """Rating with invalid score is rejected."""
         from rest_framework.test import APIClient
         booking = reserve_booking(employee, offer)
-        booking.status = "checkedin"
+        booking.status = "checked_in"
         booking.save(update_fields=["status"])
 
         client = APIClient()
@@ -117,7 +117,7 @@ class TestVenueRating:
         """Ratings for a venue can be listed."""
         from rest_framework.test import APIClient
         booking = reserve_booking(employee, offer)
-        booking.status = "checkedin"
+        booking.status = "checked_in"
         booking.save(update_fields=["status"])
 
         client = APIClient()

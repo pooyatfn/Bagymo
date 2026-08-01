@@ -11,7 +11,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import OTPRequestSerializer, OTPVerifySerializer, UserSerializer, ProfileUpdateSerializer
+from .serializers import OTPRequestSerializer, OTPVerifySerializer, UserSerializer, ProfileUpdateSerializer, EmailLoginSerializer
 from .models import User
 from .tokens import issue_tokens
 
@@ -61,6 +61,14 @@ class OTPVerifyView(APIView):
         created = user is None
         if user is None:
             user = User.objects.create_user(phone_number=phone, is_active=True, is_verified=True)
+
+        # Block company_admin login if their company is not yet approved
+        if not created and user.role == "company_admin" and user.company:
+            if user.company.status != "active":
+                return Response(
+                    {"detail": "Your company is pending admin approval."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         tokens = issue_tokens(user)
         return Response(
@@ -119,3 +127,38 @@ class AdminUserDetailView(APIView):
                 for b in bookings
             ],
         })
+
+
+class EmailLoginView(APIView):
+    """Email/password login. POST /auth/login-email/ {email, password} -> JWT tokens."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        ser = EmailLoginSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        email = ser.validated_data["email"]
+        password = ser.validated_data["password"]
+
+        user = User.objects.filter(email=email).first()
+        if user is None:
+            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.check_password(password):
+            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.is_active:
+            return Response({"detail": "Account is not active."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Block company_admin login if their company is not yet approved
+        if user.role == "company_admin" and user.company:
+            if user.company.status != "active":
+                return Response(
+                    {"detail": "Your company is pending admin approval."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        tokens = issue_tokens(user)
+        return Response({
+            "user": UserSerializer(user).data,
+            "access": tokens["access"],
+            "refresh": tokens["refresh"],
+        }, status=status.HTTP_200_OK)

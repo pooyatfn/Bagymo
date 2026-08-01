@@ -86,7 +86,7 @@ def reserve_booking(employee, offer, timeslot=None):
         employee = (
             type(employee)
             .objects
-            .select_for_update(of=("remaining_budget",))
+            .select_for_update()
             .get(pk=employee.pk)
         )
         if employee.remaining_budget < offer.price:

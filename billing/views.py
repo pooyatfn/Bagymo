@@ -68,7 +68,7 @@ def company_analytics(request):
     if user.role not in ("admin", "company_admin"):
         return Response({"detail": "Not allowed"}, status=403)
 
-    qs = Booking.objects.select_related("offer", "venue", "employee").filter(status="checkedin")
+    qs = Booking.objects.select_related("offer", "venue", "employee").filter(status="checked_in")
     if user.role == "company_admin":
         qs = qs.filter(company=user.company)
 

@@ -79,7 +79,7 @@ class TestDashboard:
         resp = hr_client.get("/api/companies/dashboard/")
         assert resp.status_code == 200
         assert resp.data["company_name"] == company.name
-        assert resp.data["employee_count"] >= 1
+        assert resp.data["user_count"] >= 1
 
 
 class TestLedger:

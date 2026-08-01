@@ -118,15 +118,16 @@ class Command(BaseCommand):
         company, _ = Company.objects.get_or_create(
             name="Bagymo Demo Co.",
             defaults={"domain": "demo.local", "default_annual_budget": 8_000_000,
-                      "fiscal_year_start": date.today(), "is_active": True},
+                      "fiscal_year_start": date.today(), "is_active": True,
+                      "status": Company.Status.ACTIVE},
         )
 
-        # employees
+        # users
         specs = [("Ali", "0912000001", "a1111111", "male"), ("Sara", "0912000002", "s2222222", "female"), ("Reza", "0912000003", "r3333333", "male")]
         for n, phone, pw, gender in specs:
             u = User.objects.filter(phone_number=phone).first()
             if not u:
-                u = User.objects.create_user(phone_number=phone, name=n, role=User.Role.EMPLOYEE,
+                u = User.objects.create_user(phone_number=phone, name=n, role=User.Role.USER,
                                              company=company, annual_budget=8_000_000,
                                              remaining_budget=8_000_000, fiscal_year_start=company.fiscal_year_start or date.today(),
                                              is_verified=True, is_active=True, gender=gender)
@@ -215,7 +216,7 @@ class Command(BaseCommand):
                 user.save(update_fields=["venue", "role"])
 
         self.stdout.write(self.style.SUCCESS(
-            f"Seeded: company={company}, employees={User.objects.filter(company=company).count()}, "
+            f"Seeded: company={company}, users={User.objects.filter(company=company).count()}, "
             f"venues={Venue.objects.count()}, offers={Offer.objects.count()}"
         ))
 

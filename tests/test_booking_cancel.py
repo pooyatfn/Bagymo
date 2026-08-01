@@ -98,7 +98,7 @@ class TestCancelBooking:
         """Non-owner sees 404 (booking not in their queryset)."""
         from accounts.models import User
         other = User.objects.create_user(
-            phone_number="0912999999", name="Other", role="employee",
+            phone_number="0912999999", name="Other", role="user",
             company=company, annual_budget=8_000_000, remaining_budget=8_000_000,
         )
         booking = reserve_booking(employee, offer)

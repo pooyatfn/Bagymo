@@ -7,7 +7,7 @@ from catalog.models import Venue, Offer, Company, TimeSlot
 class Booking(models.Model):
     """
     Reservation + check-in record.
-    Lifecycle: reserved -> paid -> checkedin -> completed
+    Lifecycle: reserved -> paid -> checked_in -> completed
                   |-> cancelled | expired
     """
     class Status:

@@ -14,13 +14,15 @@ class AccountsConfig(AppConfig):
 
 # roles
 class Role:
-    EMPLOYEE = "employee"
+    USER = "user"
     COMPANY_ADMIN = "company_admin"
+    COMPANY_HR = "company_hr"
     VENUE_STAFF = "venue_staff"
     ADMIN = "admin"
     choices = [
-        (EMPLOYEE, "Employee"),
+        (USER, "User"),
         (COMPANY_ADMIN, "Company Admin"),
+        (COMPANY_HR, "Company HR"),
         (VENUE_STAFF, "Venue Staff"),
         (ADMIN, "Platform Admin"),
     ]

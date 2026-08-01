@@ -26,6 +26,16 @@ class Category(models.Model):
 
 class Company(models.Model):
     """B2B customer: buys employee wellness budgets."""
+    class Status:
+        PENDING = "pending"
+        ACTIVE = "active"
+        SUSPENDED = "suspended"
+        CHOICES = [
+            (PENDING, "Pending"),
+            (ACTIVE, "Active"),
+            (SUSPENDED, "Suspended"),
+        ]
+
     name = models.CharField(max_length=120)
     domain = models.CharField(max_length=80, null=True, blank=True)  # for matching emails
     # default annual budget per employee (Toman)
@@ -35,6 +45,7 @@ class Company(models.Model):
     credit_limit = models.PositiveIntegerField(default=0)  # Toman
     billing_email = models.EmailField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=16, choices=Status.CHOICES, default=Status.PENDING)
     # commission override (3% default lives in settings)
     commission_pct_emp_override = models.FloatField(
         default=settings.DEFAULT_COMMISSION_PCT_EMP,
@@ -46,7 +57,7 @@ class Company(models.Model):
         db_table = "catalog_company"
 
     def __str__(self) -> str:
-        return self.name
+        return f"{self.name} [{self.get_status_display()}]"
 
 
 class Venue(models.Model):

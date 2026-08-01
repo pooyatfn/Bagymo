@@ -46,7 +46,7 @@ class LedgerEntrySerializer(serializers.ModelSerializer):
 
 class CompanyDashboardSerializer(serializers.Serializer):
     company_name = serializers.CharField()
-    employee_count = serializers.IntegerField()
+    user_count = serializers.IntegerField()
     total_annual_budget = serializers.IntegerField()
     total_remaining = serializers.IntegerField()
     total_used = serializers.IntegerField()

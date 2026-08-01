@@ -1,8 +1,8 @@
 """
 Company HR views:
-- list employees with budgets
-- set per-employee annual_budget
-- view budget ledger per employee
+- list users with budgets
+- set per-user annual_budget
+- view budget ledger per user
 - adjust (credit/debit) a budget
 - dashboard summary
 """
@@ -14,7 +14,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from accounts.models import User
-from accounts.tokens import issue_tokens
 from billing.models import BudgetLedger, Invoice
 from catalog.models import Company
 from core.permissions import IsCompanyAdmin
@@ -28,14 +27,14 @@ from .serializers import (
 
 
 class EmployeeBudgetViewSet(viewsets.ModelViewSet):
-    """Company admin manages employee budgets."""
+    """Company admin manages user budgets."""
     serializer_class = EmployeeListSerializer
     permission_classes = [IsAuthenticated, IsCompanyAdmin]
 
     def get_queryset(self):
         return User.objects.filter(
             company=self.request.user.company,
-            role="employee",
+            role="user",
         ).select_related("company")
 
     def get_serializer_class(self):
@@ -113,6 +112,8 @@ def register_company(request):
     """
     POST /api/companies/register/
     Register a new company with a company_admin user.
+    Company starts as "pending" and must be approved by an admin before
+    the company_admin can login.
     """
     name = request.data.get("name")
     email = request.data.get("email")
@@ -124,30 +125,42 @@ def register_company(request):
         return Response({"detail": "name, email, phone_number و password الزامی‌اند."}, status=400)
     if User.objects.filter(phone_number=phone).exists():
         return Response({"detail": "شماره موبیل قبلاً ثبت شده است."}, status=400)
+    if User.objects.filter(email=email).exists():
+        return Response({"detail": "ایمیل قبلاً ثبت شده است."}, status=400)
     if not phone.startswith("09") or len(phone) != 11:
         return Response({"detail": "شماره موبیل نامعتبر است."}, status=400)
 
     with transaction.atomic():
-        company = Company(name=name, domain=email.split("@")[-1] if email else "", default_annual_budget=default_budget)
+        company = Company(
+            name=name,
+            domain=email.split("@")[-1],
+            default_annual_budget=default_budget,
+            status=Company.Status.PENDING,
+            is_active=False,
+        )
         company.save()
         admin = User.objects.create_user(
             phone_number=phone,
             name=name,
+            email=email,
             role=User.Role.COMPANY_ADMIN,
             company=company,
             is_verified=True,
-            is_active=True,
+            is_active=False,  # must be approved before login
         )
         admin.set_password(password)
         admin.save()
 
-    tokens = issue_tokens(admin)
+    from core.sms import send_sms
+    admins = User.objects.filter(role="admin")
+    for a in admins:
+        send_sms(a.phone_number, f"باجیمو: شرکت جدید «{company.name}» ثبت شد. بررسی کنید.")
+
     return Response({
         "company_id": company.id,
         "company_name": company.name,
-        "user": {"id": admin.id, "phone_number": admin.phone_number, "name": admin.name, "role": admin.role},
-        "access": tokens["access"],
-        "refresh": tokens["refresh"],
+        "status": "pending",
+        "detail": "Company registered. Pending admin approval before login.",
     }, status=201)
 
 
@@ -156,9 +169,9 @@ def register_company(request):
 def company_dashboard(request):
     """GET /api/companies/dashboard/"""
     company = request.user.company
-    employees = User.objects.filter(company=company, role="employee")
-    total_annual = sum(e.annual_budget for e in employees)
-    total_remaining = sum(e.remaining_budget for e in employees)
+    users = User.objects.filter(company=company, role="user")
+    total_annual = sum(e.annual_budget for e in users)
+    total_remaining = sum(e.remaining_budget for e in users)
     from bookings.models import Booking
     total_bookings = Booking.objects.filter(company=company).count()
     invoices = Invoice.objects.filter(company=company).order_by("-period_end")[:10]
@@ -169,7 +182,8 @@ def company_dashboard(request):
     ]
     return Response({
         "company_name": company.name,
-        "employee_count": employees.count(),
+        "company_status": company.status,
+        "user_count": users.count(),
         "total_annual_budget": total_annual,
         "total_remaining": total_remaining,
         "total_used": total_annual - total_remaining,

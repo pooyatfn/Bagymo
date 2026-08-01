@@ -73,7 +73,7 @@ def reset_annual_budgets():
     """On fiscal rollover: refill remaining_budget and log a 'reset' ledger row."""
     today = date.today()
     affected = 0
-    employees = User.objects.filter(role=User.Role.EMPLOYEE)  # noqa: F821  fixed below
+    employees = User.objects.filter(role=User.Role.USER)
     for u in employees:
         if u.fiscal_year_start <= today - timedelta(days=360):  # due reset
             u.remaining_budget = u.annual_budget

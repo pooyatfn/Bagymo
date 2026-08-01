@@ -12,7 +12,8 @@ from billing.services import commission_split, reserve_booking, InsufficientBudg
 def company(db):
     return Company.objects.create(
         name="TestCo", domain="test.co", default_annual_budget=8_000_000,
-        fiscal_year_start=date.today(), is_active=True
+        fiscal_year_start=date.today(), is_active=True,
+        status=Company.Status.ACTIVE,
     )
 
 
@@ -41,7 +42,7 @@ def offer(db, venue):
 @pytest.fixture
 def employee(db, company):
     return User.objects.create_user(
-        phone_number="0912111111", name="Emp1", role="employee",
+        phone_number="0912111111", name="Emp1", role="user",
         company=company, annual_budget=8_000_000, remaining_budget=8_000_000,
         fiscal_year_start=date.today(), is_verified=True
     )
@@ -58,7 +59,7 @@ def company_admin(db, company):
 @pytest.fixture
 def male_employee(db, company):
     return User.objects.create_user(
-        phone_number="0912333333", name="MaleEmp", role="employee",
+        phone_number="0912333333", name="MaleEmp", role="user",
         company=company, annual_budget=8_000_000, remaining_budget=8_000_000,
         fiscal_year_start=date.today(), is_verified=True, gender="male"
     )
@@ -67,7 +68,7 @@ def male_employee(db, company):
 @pytest.fixture
 def female_employee(db, company):
     return User.objects.create_user(
-        phone_number="0912444444", name="FemaleEmp", role="employee",
+        phone_number="0912444444", name="FemaleEmp", role="user",
         company=company, annual_budget=8_000_000, remaining_budget=8_000_000,
         fiscal_year_start=date.today(), is_verified=True, gender="female"
     )

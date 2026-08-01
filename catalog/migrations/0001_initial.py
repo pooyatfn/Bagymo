@@ -41,6 +41,7 @@ class Migration(migrations.Migration):
                 ('credit_limit', models.PositiveIntegerField(default=0)),
                 ('billing_email', models.EmailField(blank=True, max_length=254, null=True)),
                 ('is_active', models.BooleanField(default=True)),
+                ('status', models.CharField(choices=[('pending', 'Pending'), ('active', 'Active'), ('suspended', 'Suspended')], default='pending', max_length=16)),
                 ('commission_pct_emp_override', models.FloatField(default=0.03, validators=[django.core.validators.MinValueValidator(0.0), django.core.validators.MaxValueValidator(1.0)])),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
             ],
