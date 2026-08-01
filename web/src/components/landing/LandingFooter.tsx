@@ -67,7 +67,7 @@ export function LandingFooter() {
                 <h4 className="text-sm font-semibold text-gray-900">{col.title}</h4>
                 <ul className="mt-3 space-y-2">
                   {col.links.map((l) => (
-                    <li key={l.href}>
+                    <li key={`${col.title}-${l.label}`}>
                       <Link
                         href={l.href}
                         className="text-sm text-gray-600 hover:text-emerald-700"
