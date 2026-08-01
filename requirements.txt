@@ -9,3 +9,5 @@ python-dotenv
 kavenegar
 requests
 gunicorn
+channels
+django-cors-headers

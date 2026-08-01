@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui";
-import { SparklesIcon, MapPinIcon, WalletIcon } from "../icons";
+import { SparklesIcon, MapPinIcon } from "../icons";
 
 export function HeroSection() {
   return (
@@ -52,18 +52,19 @@ export function HeroSection() {
               </Link>
             </Button>
           </div>
+
         </div>
 
         <div className="relative hidden md:block">
           <div className="relative mx-auto h-96 w-full max-w-md">
             <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-2xl border-2 border-dashed border-emerald-200 bg-white p-6 shadow-xl w-72">
-              <p className="text-center text-xs text-gray-600 mb-3">کد ورود ماهانه</p>
-              <div className="font-mono text-center text-3xl font-bold text-emerald-700 tracking-[0.3em] py-3">
-                8 4 2 1 9 7
-              </div>
-              <div className="mt-3 flex justify-center">
-                <WalletIcon className="h-5 w-5 text-emerald-600" />
-                <span className="mr-1 text-xs text-gray-600">بقیه موجودی: ۲٬۴۵۰٬۰۰۰ تومان</span>
+              <p className="text-center text-xs text-gray-600 mb-2">پیش‌نمایش اپلیکیشن</p>
+              <div className="font-mono text-center text-xl font-medium text-emerald-700 tracking-[0.1em] py-4">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <span key={i} className="inline-block mx-1 px-2 py-1 bg-emerald-100 rounded">
+                    {i + 1}
+                  </span>
+                ))}
               </div>
             </div>
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-72 -z-10">

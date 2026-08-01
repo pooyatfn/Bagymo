@@ -167,6 +167,12 @@ function LoginInner() {
            </div>
         </div>
 
+        <div className="mt-4 text-center">
+          <Link href="/" className="text-sm text-emerald-700 hover:underline">
+            بازگشت به صفحه اصلی
+          </Link>
+        </div>
+
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
            <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
            <p className="mb-6 text-center text-sm text-gray-600">
@@ -196,12 +202,6 @@ function LoginInner() {
               شرکت شما ثبت شد. پس از تایید توسط ادمین، می‌توانید با این شماره وارد شوید.
             </div>
           )}
-
-          <div className="mt-4 text-center">
-            <Link href="/" className="text-sm text-emerald-700 hover:underline">
-              بازگشت به صفحه اصلی
-            </Link>
-          </div>
 
           {phase === "phone" ? (
             <form onSubmit={handleRequest} className="space-y-4">
