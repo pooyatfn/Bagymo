@@ -147,25 +147,23 @@ function LoginInner() {
             <SparklesIcon className="h-6 w-6" />
             <span>باجیمو</span>
           </Link>
-           <div className="flex items-center gap-3 text-sm">
-{selectedRole === "venue_staff" && (
+<div className="flex items-center gap-3 text-sm">
+              <Link
+                href="/venue/register"
+                className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+              >
+                ثبت نام مجتمع جدید
+              </Link>
+              {selectedRole === "company_admin" && (
                 <Link
-                  href="/venue/register"
+                  href="/company/register"
                   className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
                 >
-                  ثبت نام مجتمع جدید
+                  ثبت شرکت جدید
                 </Link>
               )}
-             {selectedRole === "company_admin" && (
-               <Link
-                 href="/company/register"
-                 className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-               >
-                 ثبت شرکت جدید
-               </Link>
-             )}
-           </div>
-        </div>
+            </div>
+         </div>
         
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
            <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
