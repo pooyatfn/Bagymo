@@ -70,7 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem("refresh");
             localStorage.removeItem("role");
           }
-        } else setUser(null);
+        } else {
+          setUser(null);
+          // redirect to login for protected routes (but not on landing or login pages)
+          if (typeof window !== "undefined") {
+            const publicPaths = ["/", "/login"];
+            if (!publicPaths.includes(window.location.pathname)) {
+              window.location.href = "/login";
+            }
+          }
+        }
         setLoading(false);
       });
   }, []);

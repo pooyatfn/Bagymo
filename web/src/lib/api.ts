@@ -21,7 +21,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// handle 401 → clear token, redirect to login
+// handle 401 → clear token only, let components handle redirect
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -29,7 +29,7 @@ api.interceptors.response.use(
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
       localStorage.removeItem("role");
-      window.location.href = "/login";
+      localStorage.removeItem("user");
     }
     return Promise.reject(err);
   }
