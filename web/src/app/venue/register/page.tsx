@@ -34,7 +34,7 @@ const DEFAULT_FORM = {
 type FormState = typeof DEFAULT_FORM;
 
 export default function RegisterVenuePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [existingVenue, setExistingVenue] = useState<VenueProfile | null>(null);
@@ -44,6 +44,13 @@ export default function RegisterVenuePage() {
   const [locating, setLocating] = useState(false);
 
   const userId = user?.id;
+
+  // Redirect to login if not authenticated (but allow loading state to resolve first)
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login?redirect=/venue/register");
+    }
+  }, [user, authLoading, router]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>

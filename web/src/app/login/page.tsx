@@ -10,6 +10,7 @@ import { SparklesIcon } from "@/components/icons";
 export default function LoginPage() {
   const { login, verify } = useAuth();
   const router = useRouter();
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [phase, setPhase] = useState<"phone" | "otp">("phone");
@@ -60,15 +61,20 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await verify(phone, code);
-      const role = localStorage.getItem("role") || selectedRole;
-      const paths: Record<string, string> = {
-        employee: "/employee/dashboard",
-        company_admin: "/company/dashboard",
-        company_hr: "/company/dashboard",
-        venue_staff: "/venue/dashboard",
-        admin: "/admin",
-      };
-      router.push(paths[role] || "/employee/dashboard");
+      const redirect = searchParams?.get("redirect");
+      if (redirect) {
+        router.push(redirect);
+      } else {
+        const role = localStorage.getItem("role") || selectedRole;
+        const paths: Record<string, string> = {
+          employee: "/employee/dashboard",
+          company_admin: "/company/dashboard",
+          company_hr: "/company/dashboard",
+          venue_staff: "/venue/dashboard",
+          admin: "/admin",
+        };
+        router.push(paths[role] || "/employee/dashboard");
+      }
     } catch {
       setError("کد نامعتبر یا منقضی شده است.");
     }
@@ -98,7 +104,7 @@ export default function LoginPage() {
           </Link>
           <div className="flex items-center gap-3 text-sm">
             <Link
-              href="/venue/register"
+              href="/login?redirect=/venue/register"
               className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
             >
               ثبت باشگاه جدید
