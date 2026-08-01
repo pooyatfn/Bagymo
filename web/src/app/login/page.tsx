@@ -148,14 +148,14 @@ function LoginInner() {
             <span>باجیمو</span>
           </Link>
            <div className="flex items-center gap-3 text-sm">
-             {selectedRole === "venue_staff" && (
-               <Link
-                 href="/login?redirect=/venue/register"
-                 className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-               >
-                 ثبت باشگاه جدید
-               </Link>
-             )}
+{selectedRole === "venue_staff" && (
+                <Link
+                  href="/venue/register"
+                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                >
+                  ثبت نام مجتمع جدید
+                </Link>
+              )}
              {selectedRole === "company_admin" && (
                <Link
                  href="/company/register"
@@ -166,13 +166,7 @@ function LoginInner() {
              )}
            </div>
         </div>
-
-        <div className="mt-4 text-center">
-          <Link href="/" className="text-sm text-emerald-700 hover:underline">
-            بازگشت به صفحه اصلی
-          </Link>
-        </div>
-
+        
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
            <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
            <p className="mb-6 text-center text-sm text-gray-600">
@@ -316,6 +310,12 @@ function LoginInner() {
           <div className="mt-6 text-center text-xs text-gray-600">
             <span>© {new Date().getFullYear()} باجیمو — پلتفرم سلامت سازمانی.</span>
           </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <Link href="/" className="text-sm text-emerald-700 hover:underline">
+            بازگشت به صفحه اصلی
+          </Link>
         </div>
       </div>
     </div>
