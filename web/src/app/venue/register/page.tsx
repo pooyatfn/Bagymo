@@ -29,6 +29,8 @@ const DEFAULT_FORM = {
   phone: "",
   gender_policy: "mixed",
   description: "",
+  password: "",
+  password_confirm: "",
 };
 
 type FormState = typeof DEFAULT_FORM;
@@ -79,6 +81,8 @@ export default function RegisterVenuePage() {
           phone: v.phone || "",
           gender_policy: v.gender_policy || "mixed",
           description: v.description || "",
+          password: "",
+          password_confirm: "",
         });
         setFetching(false);
       })
@@ -101,13 +105,17 @@ export default function RegisterVenuePage() {
         });
         alert("پروفایل مجتمع به‌روزرسانی شد.");
       } else {
-        await api.post("/catalog/register-venue/", {
+        // Public registration endpoint (creates venue + user account)
+        await api.post("/catalog/register-venue-public/", {
           ...form,
           lat: form.lat ? parseFloat(form.lat) : null,
           lng: form.lng ? parseFloat(form.lng) : null,
+          phone: form.phone,
+          name: form.name,
+          password: form.password,
         });
         alert("مجتمع شما ثبت شد و در انتظار تأیید ادمین است.");
-        router.push("/venue/dashboard");
+        router.push("/login");
       }
     } catch (err) {
       setError(apiErrorDetail(err, "خطا در پردازش درخواست"));
@@ -192,12 +200,34 @@ export default function RegisterVenuePage() {
                 value={form.district}
                 onChange={handleChange}
               />
-              <Input
+<Input
                 label="شهر"
                 name="city"
                 value={form.city}
                 onChange={handleChange}
               />
+              {!existingVenue && (
+                <>
+                  <Input
+                    label="رمز عبور *"
+                    name="password"
+                    type="password"
+                    placeholder="حداقل ۸ کاراکتر"
+                    value={form.password}
+                    onChange={handleChange}
+                    required
+                  />
+                  <Input
+                    label="تکرار رمز عبور *"
+                    name="password_confirm"
+                    type="password"
+                    placeholder="تکرار رمز عبور"
+                    value={form.password_confirm}
+                    onChange={handleChange}
+                    required
+                  />
+                </>
+              )}
 <div className="sm:col-span-2">
               <Input
                 label="آدرس"

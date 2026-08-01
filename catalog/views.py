@@ -1,7 +1,7 @@
 """Catalog views."""
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 from .models import Venue, Offer, Category, TimeSlot, VenueRating
@@ -11,6 +11,7 @@ from .serializers import (
 )
 from core.permissions import IsVenueStaff, IsAdmin
 from core.sms import send_sms
+from accounts.models import User
 
 
 class VenueViewSet(viewsets.ReadOnlyModelViewSet):
@@ -48,6 +49,41 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
     lookup_field = "slug"
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_venue_public(request):
+    """Public venue registration: creates venue + venue_staff user."""
+    ser = VenueOnboardingSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    category = ser.validated_data.pop("category_slug")
+    venue = Venue.objects.create(category=category, status="pending", **ser.validated_data)
+
+    phone = request.data.get("phone")
+    name = request.data.get("name", "")
+    password = request.data.get("password")
+    if not phone or not password:
+        return Response({"detail": "phone and password required"}, status=400)
+
+    if User.objects.filter(phone_number=phone).exists():
+        return Response({"detail": "phone already registered"}, status=400)
+    user = User.objects.create_user(
+        phone_number=phone,
+        name=name,
+        role="venue_staff",
+        venue=venue,
+        is_active=True,
+        is_verified=True,
+    )
+    user.set_password(password)
+    user.save()
+
+    admins = User.objects.filter(role="admin")
+    for admin in admins:
+        send_sms(admin.phone_number, f"باجیمو: مجتمع جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
+
+    return Response(VenueSerializer(venue).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])

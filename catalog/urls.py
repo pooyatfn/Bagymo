@@ -2,7 +2,7 @@
 from rest_framework import routers
 from django.urls import include, path
 from .views import (
-    VenueViewSet, CategoryViewSet, register_venue, venue_offers,
+    VenueViewSet, CategoryViewSet, register_venue, register_venue_public, venue_offers,
     venue_profile, venue_profile_update, approve_venue, reject_venue,
     pending_venues, offer_timeslots, venue_ratings, create_venue_rating,
     company_info, admin_companies, pending_companies, approve_company,
@@ -16,6 +16,7 @@ router.register(r"categories", CategoryViewSet, basename="category")
 urlpatterns = [
     path("", include(router.urls)),
     path("register-venue/", register_venue, name="register-venue"),
+    path("register-venue-public/", register_venue_public, name="register-venue-public"),
     path("venue-offers/", venue_offers, name="venue-offers"),
     path("venue-offers/<int:offer_id>/", venue_offers, name="venue-offer-detail"),
     path("venue-profile/", venue_profile, name="venue-profile"),
