@@ -14,10 +14,10 @@ interface ProfileData {
 }
 
 const roleLabels: Record<string, string> = {
-  employee: "کارمند",
+  user: "کاربر",
   company_admin: "مدیر شرکت",
   company_hr: "منابع انسانی",
-  venue_staff: "کارمند باشگاه",
+  venue_staff: "پرسنل باشگاه",
   admin: "مدیر پلتفرم",
 };
 
@@ -33,7 +33,9 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
-  const companyName = (user as { company_name?: string }).company_name;
+   if (!user) return null;
+
+   const companyName = (user as { company_name?: string }).company_name;
 
   if (profile && !name) {
     setName(profile.name || "");

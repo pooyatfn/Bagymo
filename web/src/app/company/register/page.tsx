@@ -24,13 +24,8 @@ export default function CompanyRegisterPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await api.post("/companies/register/", form);
-      const { access, refresh, user } = res.data;
-      localStorage.setItem("access", access);
-      localStorage.setItem("refresh", refresh);
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("role", user.role);
-      router.push("/company/dashboard");
+      await api.post("/companies/register/", form);
+      router.push("/login?registered=company");
     } catch (err: unknown) {
       setError(apiErrorDetail(err) || "خطا در ثبت شرکت.");
     }
@@ -57,6 +52,8 @@ export default function CompanyRegisterPage() {
           <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ثبت شرکت جدید</h1>
           <p className="mb-6 text-center text-sm text-gray-600">
             شرکت خود را ثبت کنید و به بودجه سلامتی کارمندان خود دسترسی داشته باشید.
+            <br />
+            <span className="text-xs text-gray-500">پس از تایید توسط ادمین، می‌توانید وارد شوید.</span>
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

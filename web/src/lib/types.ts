@@ -1,7 +1,7 @@
 /** Shared API response types for the bagymo.ir frontend. */
 
 export type UserRole =
-  | "employee"
+  | "user"
   | "company_admin"
   | "company_hr"
   | "venue_staff"

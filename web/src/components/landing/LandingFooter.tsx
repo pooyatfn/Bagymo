@@ -35,7 +35,7 @@ export function LandingFooter() {
   const dashboardPath =
     user &&
     ({
-      employee: "/employee/dashboard",
+      user: "/user/dashboard",
       company_admin: "/company/dashboard",
       company_hr: "/company/dashboard",
       venue_staff: "/venue/dashboard",

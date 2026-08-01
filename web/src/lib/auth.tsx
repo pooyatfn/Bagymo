@@ -17,6 +17,7 @@ interface AuthCtx {
   loading: boolean;
   login: (phone: string) => Promise<void>;
   verify: (phone: string, code: string) => Promise<{ created: boolean }>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const raw = localStorage.getItem("user");
         if (raw) {
           const cached: User = JSON.parse(raw);
-          if (["employee", "company_admin", "company_hr", "venue_staff", "admin"].includes(cached.role)) {
+          if (["user", "company_admin", "company_hr", "venue_staff", "admin"].includes(cached.role)) {
             setUser(cached);
           } else {
             setUser(null);
@@ -101,6 +102,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { created: res.data.created };
   };
 
+  const loginWithEmail = async (email: string, password: string) => {
+    const res = await api.post("/auth/login-email/", { email, password });
+    const { access, refresh, user: u } = res.data;
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", refresh);
+    localStorage.setItem("user", JSON.stringify(u));
+    localStorage.setItem("role", u.role);
+    setUser(u);
+  };
+
   const logout = () => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
@@ -110,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verify, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, verify, loginWithEmail, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

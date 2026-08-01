@@ -52,7 +52,7 @@ export function LandingHeader() {
 
 function dashboardPath(role: string) {
   const paths: Record<string, string> = {
-    employee: "/employee/dashboard",
+    user: "/user/dashboard",
     company_admin: "/company/dashboard",
     company_hr: "/company/dashboard",
     venue_staff: "/venue/dashboard",

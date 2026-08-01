@@ -12,11 +12,11 @@ interface NavLink {
 }
 
 const NAV_CONFIG: Record<string, NavLink[]> = {
-  employee: [
-    { label: "داشبورد", href: "/employee/dashboard", icon: <Bars3Icon /> },
-    { label: "کشف باشگاه‌ها", href: "/employee/discover", icon: <Bars3Icon /> },
-    { label: "رزروهای من", href: "/employee/bookings", icon: <Bars3Icon /> },
-    { label: "شرکت من", href: "/employee/company", icon: <Bars3Icon /> },
+  user: [
+    { label: "داشبورد", href: "/user/dashboard", icon: <Bars3Icon /> },
+    { label: "کشف باشگاه‌ها", href: "/user/discover", icon: <Bars3Icon /> },
+    { label: "رزروهای من", href: "/user/bookings", icon: <Bars3Icon /> },
+    { label: "شرکت من", href: "/user/company", icon: <Bars3Icon /> },
     { label: "پروفایل", href: "/profile", icon: <Bars3Icon /> },
   ],
   venue_staff: [
@@ -38,7 +38,7 @@ const NAV_CONFIG: Record<string, NavLink[]> = {
 };
 
 const roleLabels: Record<string, string> = {
-  employee: "کارمند",
+  user: "کاربر",
   company_admin: "مدیر شرکت",
   company_hr: "منابع انسانی",
   venue_staff: "پرسنل باشگاه",

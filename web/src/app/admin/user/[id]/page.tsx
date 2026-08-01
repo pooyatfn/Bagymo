@@ -72,7 +72,7 @@ export default function AdminUserDetailPage() {
   };
 
   const roleLabels: Record<string, string> = {
-    employee: "کارمند",
+    user: "کاربر",
     company_admin: "مدیر شرکت",
     company_hr: "منابع انسانی",
     venue_staff: "پرسنل باشگاه",

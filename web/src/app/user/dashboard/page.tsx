@@ -25,10 +25,10 @@ export default function EmployeeDashboard() {
 
   return (
     <PageShell
-      title="داشبورد کارمند"
+      title="داشبورد کاربر"
       action={
         <Button variant="secondary" size="sm" asChild>
-          <Link href="/employee/discover">کشف باشگاه‌ها</Link>
+          <Link href="/user/discover">کشف باشگاه‌ها</Link>
         </Button>
       }
     >
@@ -64,7 +64,7 @@ export default function EmployeeDashboard() {
                 رزروهای اخیر
               </h2>
               <Link
-                href="/employee/bookings"
+                href="/user/bookings"
                 className="text-sm text-emerald-600 hover:underline"
               >
                 مشاهده همه
@@ -81,7 +81,7 @@ export default function EmployeeDashboard() {
                 {bookings.slice(0, 5).map((b) => (
                   <Link
                     key={b.id}
-                    href="/employee/bookings"
+                    href="/user/bookings"
                     className="block rounded-lg bg-white p-4 shadow-sm transition hover:bg-gray-50"
                   >
                     <div className="flex items-center justify-between gap-4">
@@ -127,7 +127,7 @@ export default function EmployeeDashboard() {
                 باشگاه‌های نزدیک
               </h2>
               <Link
-                href="/employee/discover"
+                href="/user/discover"
                 className="text-sm text-emerald-600 hover:underline"
               >
                 مشاهده همه

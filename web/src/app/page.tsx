@@ -19,7 +19,7 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     if (!loading && user && params.get("redirect") === "app") {
       const paths: Record<string, string> = {
-        employee: "/employee/dashboard",
+        user: "/user/dashboard",
         company_admin: "/company/dashboard",
         company_hr: "/company/dashboard",
         venue_staff: "/venue/dashboard",

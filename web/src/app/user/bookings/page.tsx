@@ -43,7 +43,7 @@ export default function BookingsPage() {
     <PageShell
       title="رزروهای من"
       action={
-        <Link href="/employee/discover">
+        <Link href="/user/discover">
           <Button variant="primary" size="sm">
             کشف باشگاه‌ها
           </Button>
@@ -57,7 +57,7 @@ export default function BookingsPage() {
       ) : list.length === 0 ? (
         <div className="rounded-xl bg-white p-12 text-center shadow-sm">
           <p className="mb-4 text-gray-600">هنوز رزروی ندارید.</p>
-          <Link href="/employee/discover">
+          <Link href="/user/discover">
             <Button variant="primary">کشف باشگاه‌ها</Button>
           </Link>
         </div>
