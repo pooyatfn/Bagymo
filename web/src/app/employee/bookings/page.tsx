@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 function formatTomans(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
@@ -28,8 +28,7 @@ function timeLeft(expiresAt: string) {
 }
 
 export default function BookingsPage() {
-  const { user, logout, refreshUser } = useAuth();
-  const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -78,16 +77,7 @@ export default function BookingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجیمو</Link>
-          <div className="flex items-center gap-3">
-            <Link href="/employee/dashboard" className="text-sm text-gray-600 hover:underline">داشبورد</Link>
-            <Link href="/employee/discover" className="text-sm text-emerald-600 hover:underline font-medium">کشف باشگاه‌ها</Link>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">رزروهای من</h1>
         {loading ? (

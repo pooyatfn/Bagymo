@@ -150,7 +150,7 @@ def mark_checked_in(booking, code, staff_code, request):
     Verify a booking via numeric/QR code at the venue. Marks CHECKED_IN.
     Returns (bool ok, str message).
     """
-    if booking.status != Booking.Status.PAID:
+    if booking.status not in (Booking.Status.PAID, Booking.Status.RESERVED):
         return False, f"Booking cannot be checked in (status={booking.status})."
     if booking.expires_at < timezone.now():
         booking.status = Booking.Status.EXPIRED

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
 function formatTomans(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
@@ -13,8 +13,7 @@ function formatDate(d: string) {
 }
 
 export default function InvoicesPage() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [tab, setTab] = useState<"invoices" | "bookings">("invoices");
@@ -63,16 +62,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجیمو — مدیر شرکت</span>
-          <div className="flex items-center gap-3">
-            <a href="/company/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</a>
-            <span className="text-sm text-gray-600 hidden sm:inline">{user.name}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">فاکتورها و رزروها</h1>
 

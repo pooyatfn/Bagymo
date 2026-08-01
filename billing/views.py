@@ -51,8 +51,8 @@ def company_bookings(request):
     else:
         return Response({"detail": "Not allowed"}, status=403)
     return Response([
-        {"id": b.id, "employee_name": b.employee.name, "employee_phone": b.employee.phone_number,
-         "venue_name": b.venue.name, "offer_name": b.offer.name,
+        {"id": b.id, "employee_id": b.employee_id, "employee_name": b.employee.name, "employee_phone": b.employee.phone_number,
+         "venue_id": b.venue_id, "venue_name": b.venue.name, "offer_name": b.offer.name,
          "price": b.price, "status": b.status,
          "reserved_at": b.reserved_at, "checked_in_at": b.checked_in_at,
          "cancelled_at": b.cancelled_at}

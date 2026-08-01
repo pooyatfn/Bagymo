@@ -2,17 +2,15 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
 function formatTomans(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
 }
 
 export default function VenueDashboard() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
   const [checkInCode, setCheckInCode] = useState("");
   const [checkInResult, setCheckInResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,10 +18,6 @@ export default function VenueDashboard() {
   const loadBookings = () => {
     if (!user) return;
     api.get("/bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
-    api.get("/billing/venue-settlements/").then((r) => {
-      const data = r.data.results || r.data;
-      if (data.length > 0) setStats(data[0]);
-    }).catch(() => {});
   };
 
   useEffect(() => { loadBookings(); }, [user?.id]);
@@ -45,6 +39,12 @@ export default function VenueDashboard() {
 
   if (!user) return null;
 
+  const totalReceived = bookings
+    .filter((b: any) => ["checked_in", "completed"].includes(b.status))
+    .reduce((sum: number, b: any) => sum + (b.venue_net_payout || 0), 0);
+  const totalCheckedIn = bookings.filter((b: any) => ["checked_in", "completed"].includes(b.status)).length;
+  const pendingCount = bookings.filter((b: any) => b.status === "reserved").length;
+
   const statusColors: Record<string, string> = {
     reserved: "bg-blue-100 text-blue-700",
     checked_in: "bg-emerald-100 text-emerald-700",
@@ -63,18 +63,7 @@ export default function VenueDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجیمو — کارمند باشگاه</span>
-          <div className="flex items-center gap-4">
-            <a href="/venue/settlements" className="text-sm text-emerald-600 hover:underline hidden sm:inline">تسویه‌حساب</a>
-            <a href="/venue/offers" className="text-sm text-emerald-600 hover:underline hidden sm:inline">آفرها</a>
-            <a href="/venue/register" className="text-sm text-gray-600 hover:underline hidden sm:inline">ثبت باشگاه</a>
-            <span className="text-sm text-gray-600">{user.name}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-5xl px-6 py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">داشبورد باشگاه</h1>
 
@@ -106,22 +95,20 @@ export default function VenueDashboard() {
         </div>
 
         {/* Stats */}
-        {stats && (
-          <div className="mb-8 grid grid-cols-3 gap-4">
-            <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-600">تعداد رزروها</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_count || 0}</p>
-            </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-600">تسویه پرداخت شده</p>
-              <p className="text-2xl font-bold text-emerald-700">{formatTomans(stats.total_net_payout || 0)}</p>
-            </div>
-            <div className="rounded-xl bg-white p-5 shadow-sm text-center">
-              <p className="text-sm text-gray-600">وضعیت</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.status === "paid" ? "پرداخت شده" : "در انتظار"}</p>
-            </div>
+        <div className="mb-8 grid grid-cols-3 gap-4">
+          <div className="rounded-xl bg-white p-5 shadow-sm text-center">
+            <p className="text-sm text-gray-600">تعداد رزروها</p>
+            <p className="text-2xl font-bold text-gray-900">{bookings.length}</p>
           </div>
-        )}
+          <div className="rounded-xl bg-white p-5 shadow-sm text-center">
+            <p className="text-sm text-gray-600">کل دریافتی</p>
+            <p className="text-2xl font-bold text-emerald-700">{formatTomans(totalReceived)}</p>
+          </div>
+          <div className="rounded-xl bg-white p-5 shadow-sm text-center">
+            <p className="text-sm text-gray-600">ورود تایید شده</p>
+            <p className="text-2xl font-bold text-gray-900">{totalCheckedIn} از {bookings.length}</p>
+          </div>
+        </div>
 
         {/* Reservation List */}
         <h2 className="mb-3 text-lg font-semibold text-gray-900">رزروها</h2>

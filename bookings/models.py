@@ -13,7 +13,7 @@ class Booking(models.Model):
     class Status:
         RESERVED = "reserved"
         PAID = "paid"
-        CHECKED_IN = "checkedin"
+        CHECKED_IN = "checked_in"
         COMPLETED = "completed"
         CANCELLED = "cancelled"
         EXPIRED = "expired"

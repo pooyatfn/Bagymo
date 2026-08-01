@@ -7,7 +7,7 @@ Auth endpoints:
 """
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .views import OTPRequestView, OTPVerifyView, ProfileView
+from .views import OTPRequestView, OTPVerifyView, ProfileView, AdminUserDetailView
 
 urlpatterns = [
     path("otp-request/", OTPRequestView.as_view(), name="otp-request"),
@@ -15,4 +15,5 @@ urlpatterns = [
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("admin/users/<int:user_id>/", AdminUserDetailView.as_view(), name="admin-user-detail"),
 ]

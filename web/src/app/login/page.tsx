@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const { login, verify } = useAuth();
@@ -48,7 +49,17 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
+      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-sm z-10">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+          <span className="text-lg font-bold text-emerald-700">باجیمو</span>
+          <div className="flex items-center gap-4">
+            <Link href="/venue/register" className="text-sm text-emerald-600 hover:underline">ثبت باشگاه</Link>
+            <span className="text-sm text-gray-400">|</span>
+            <span className="text-sm text-gray-600">ورود</span>
+          </div>
+        </div>
+      </nav>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg mt-12">
         <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">باجیمو</h1>
         <p className="mb-6 text-center text-sm text-gray-600">پلتفرم سلامت سازمانی</p>
 

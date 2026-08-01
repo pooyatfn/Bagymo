@@ -98,7 +98,7 @@ class Venue(models.Model):
         db_table = "catalog_venue"
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.get_category_display()})"
+        return f"{self.name} ({self.category})"
 
     def gender_for_now(self):
         """Return the gender policy active at the current time, or the static default."""
@@ -230,3 +230,24 @@ class TimeSlot(models.Model):
         if self.capacity == 0:
             return 999
         return max(0, self.capacity - self.booked_count)
+
+
+class VenueRating(models.Model):
+    """Employee rating + comment for a venue. One rating per user per venue (editable)."""
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="ratings")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="venue_ratings")
+    score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="1-5 stars",
+    )
+    comment = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "catalog_venuerating"
+        unique_together = ("venue", "user")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} → {self.venue}: {self.score}★"

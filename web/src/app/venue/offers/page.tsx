@@ -2,18 +2,20 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
 function formatTomans(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
 }
 
+const emptyForm = { name: "", price: "", duration_minutes: "60", description: "", gender_restriction: "mixed" };
+
 export default function VenueOffersPage() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [offers, setOffers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", duration_minutes: "60", description: "", gender_restriction: "mixed" });
+  const [editingOffer, setEditingOffer] = useState<any>(null);
+  const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
@@ -46,13 +48,60 @@ export default function VenueOffersPage() {
         description: form.description,
         gender_restriction: form.gender_restriction,
       });
-      setForm({ name: "", price: "", duration_minutes: "60", description: "", gender_restriction: "mixed" });
+      setForm(emptyForm);
       setShowForm(false);
       load();
     } catch (err: any) {
       setError(err.response?.data?.detail || JSON.stringify(err.response?.data) || "خطا در ایجاد آفر");
     }
     setLoading(false);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOffer) return;
+    setLoading(true);
+    setError("");
+    try {
+      const price = parseInt(form.price);
+      await api.patch(`/catalog/venue-offers/${editingOffer.id}/`, {
+        name: form.name,
+        price,
+        venue_payout: Math.round(price * 0.94),
+        duration_minutes: parseInt(form.duration_minutes),
+        description: form.description,
+        gender_restriction: form.gender_restriction,
+      });
+      setForm(emptyForm);
+      setEditingOffer(null);
+      setShowForm(false);
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "خطا در ویرایش آفر");
+    }
+    setLoading(false);
+  };
+
+  const handleDelete = async (offerId: number) => {
+    if (!confirm("آیا از حذف این آفر اطمینان دارید؟")) return;
+    try {
+      await api.delete(`/catalog/venue-offers/${offerId}/`);
+      load();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "خطا در حذف آفر");
+    }
+  };
+
+  const startEdit = (offer: any) => {
+    setEditingOffer(offer);
+    setForm({
+      name: offer.name,
+      price: String(offer.price),
+      duration_minutes: String(offer.duration_minutes),
+      description: offer.description || "",
+      gender_restriction: offer.gender_restriction,
+    });
+    setShowForm(true);
   };
 
   const handleCreateSlot = async (e: React.FormEvent) => {
@@ -76,27 +125,19 @@ export default function VenueOffersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجیمو — مدیریت آفرها</span>
-          <div className="flex items-center gap-3">
-            <a href="/venue/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</a>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">آفرهای باشگاه</h1>
-          <button onClick={() => setShowForm(!showForm)}
+          <button onClick={() => { setShowForm(!showForm); setEditingOffer(null); setForm(emptyForm); }}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
             + آفر جدید
           </button>
         </div>
 
-        {showForm && (
-          <form onSubmit={handleCreate} className="mb-6 rounded-xl bg-white p-6 shadow-sm space-y-4">
-            <h2 className="font-semibold text-gray-900">آفر جدید</h2>
+        {(showForm || editingOffer) && (
+          <form onSubmit={editingOffer ? handleEdit : handleCreate} className="mb-6 rounded-xl bg-white p-6 shadow-sm space-y-4">
+            <h2 className="font-semibold text-gray-900">{editingOffer ? "ویرایش آفر" : "آفر جدید"}</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-700">نام آفر *</label>
@@ -137,9 +178,9 @@ export default function VenueOffersPage() {
             )}
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600">انصراف</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditingOffer(null); setForm(emptyForm); }} className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600">انصراف</button>
               <button type="submit" disabled={loading} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                {loading ? "در حال ایجاد..." : "ایجاد آفر"}
+                {loading ? "در حال ذخیره..." : editingOffer ? "ذخیره تغییرات" : "ایجاد آفر"}
               </button>
             </div>
           </form>
@@ -159,14 +200,17 @@ export default function VenueOffersPage() {
                   <div className="text-right">
                     <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
                     <p className="text-xs text-gray-600">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
-                    <button onClick={() => { setSelectedOffer(selectedOffer?.id === o.id ? null : o); loadSlots(o.id); }}
-                      className="mt-1 text-xs text-emerald-600 hover:underline">
-                      {selectedOffer?.id === o.id ? "بستن زمان‌بندی" : "زمان‌بندی"}
-                    </button>
+                    <div className="mt-1 flex items-center gap-2 justify-end">
+                      <button onClick={() => { setSelectedOffer(selectedOffer?.id === o.id ? null : o); loadSlots(o.id); }}
+                        className="text-xs text-emerald-600 hover:underline">
+                        {selectedOffer?.id === o.id ? "بستن زمان‌بندی" : "زمان‌بندی"}
+                      </button>
+                      <button onClick={() => startEdit(o)} className="text-xs text-blue-600 hover:underline">ویرایش</button>
+                      <button onClick={() => handleDelete(o.id)} className="text-xs text-red-500 hover:underline">حذف</button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Timeslots for this offer */}
                 {selectedOffer?.id === o.id && (
                   <div className="mt-2 rounded-xl bg-gray-50 p-4 border border-gray-200">
                     <h3 className="mb-3 text-sm font-semibold text-gray-700">زمان‌بندی نوبت‌ها</h3>

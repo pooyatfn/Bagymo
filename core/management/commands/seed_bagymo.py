@@ -11,21 +11,27 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.models import User
-from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot, TimeSlot
+from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot, TimeSlot, VenueRating
 from billing.services import reserve_booking
 
 
 SAMPLE_GYMS = [
-    {"name": "Flex Gym Tehran", "address": "Valiasr St, Tehran", "lat": 35.6892, "lng": 51.3890, "phone": "021-91000001", "district": " مرکزی", "city": "Tehran", "gender_policy": "mixed"},
-    {"name": "Champion Fitness", "address": "Niavaran, Tehran", "lat": 35.8123, "lng": 51.4478, "phone": "021-91000002", "district": "شمال", "city": "Tehran", "gender_policy": "mixed"},
-    {"name": "BodySpace Arena", "address": "Mirdamad, Tehran", "lat": 35.7664, "lng": 51.4121, "phone": "021-91000003", "district": "میرداماد", "city": "Tehran", "gender_policy": "mixed"},
+    {"name": "آهنگ زندگی", "address": "ولیعصر، بالاتر از میرداماد", "lat": 35.7664, "lng": 51.4121, "phone": "021-22221111", "district": "میرداماد", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی و فیتنس با تجهیزات مدرن"},
+    {"name": "پولادین", "address": "خیابان ولیعصر، نبش کوچه بورس", "lat": 35.7210, "lng": 51.3950, "phone": "021-88887777", "district": "انقلاب", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی حرفه‌ای با مربیان مجرب"},
+    {"name": "آرسی", "address": "ونک، بلوار شهید حقانی", "lat": 35.7810, "lng": 51.4260, "phone": "021-22003300", "district": "ونک", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی و فیتنس وانک"},
+    {"name": "تکسان", "address": "سعادت آباد، بلوار پاکنژاد", "lat": 35.7850, "lng": 51.3620, "phone": "021-88445566", "district": "سعادت آباد", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی سعادت آباد"},
+    {"name": "بادی فیتنس", "address": "تهرانپارس، خیابان ۱۹۶ شرقی", "lat": 35.7440, "lng": 51.5020, "phone": "021-77665544", "district": "تهرانپارس", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی تهرانپارس"},
+    {"name": "استخر و سونا نگین", "address": "نیاوران، خیابان م المقدسی", "lat": 35.8050, "lng": 51.4580, "phone": "021-22881100", "district": "نیاوران", "city": "Tehran", "gender_policy": "mixed", "category": "pool", "description": "استخر سرپوشیده و سونا و جکوزی"},
+    {"name": "استخر المپیک", "address": "باقرشهر، بلوار الغدیر", "lat": 35.6200, "lng": 51.4800, "phone": "021-55443322", "district": "باقرشهر", "city": "Tehran", "gender_policy": "mixed", "category": "pool", "description": "استخر المپیک با امکانات کامل"},
+    {"name": "سینما آزادی", "address": "آزادی، میدان آزادی", "lat": 35.6990, "lng": 51.3370, "phone": "021-66445500", "district": "آزادی", "city": "Tehran", "gender_policy": "mixed", "category": "cinema", "description": "سینما چند سالنه با صندلی‌های راحت"},
+    {"name": "سینما کوروش", "address": "تهرانسر، بلوار شهید لشکری", "lat": 35.6830, "lng": 51.2430, "phone": "021-44556677", "district": "تهرانسر", "city": "Tehran", "gender_policy": "mixed", "category": "cinema", "description": "سینما کوروش با سیستم صوتی دالبی"},
+    {"name": "یوگا شیراز", "address": "خیابان شیراز، بالاتر از میدان فلسطین", "lat": 35.7180, "lng": 51.3960, "phone": "021-33221100", "district": "انقلاب", "city": "Tehran", "gender_policy": "female", "category": "yoga", "description": "مرکز یوگا و مدیتیشن بانوان"},
+    {"name": "باشگاه اسکواش پارسیان", "address": "ولنجک، خیابان ۳۲", "lat": 35.7980, "lng": 51.3890, "phone": "021-22114455", "district": "ولنجک", "city": "Tehran", "gender_policy": "male", "category": "sport", "description": "باشگاه اسکواش حرفه‌ای"},
 ]
 
 # Gender slots: time-based gender policies per venue
-# Champion: male mornings, female afternoons (weekdays)
-# BodySpace: female mornings, mixed evenings (weekdays)
 GENDER_SLOTS = {
-    "Champion Fitness": [
+    "پولادین": [
         {"day": "sat", "start": "06:00", "end": "14:00", "gender": "male"},
         {"day": "sat", "start": "14:00", "end": "22:00", "gender": "female"},
         {"day": "sun", "start": "06:00", "end": "14:00", "gender": "male"},
@@ -40,7 +46,7 @@ GENDER_SLOTS = {
         {"day": "thu", "start": "14:00", "end": "22:00", "gender": "female"},
         {"day": "fri", "start": "08:00", "end": "22:00", "gender": "mixed"},
     ],
-    "BodySpace Arena": [
+    "تکسان": [
         {"day": "sat", "start": "06:00", "end": "14:00", "gender": "female"},
         {"day": "sat", "start": "14:00", "end": "22:00", "gender": "mixed"},
         {"day": "sun", "start": "06:00", "end": "14:00", "gender": "female"},
@@ -57,20 +63,58 @@ GENDER_SLOTS = {
     ],
 }
 OFFERS = [
-    ("1h gym access", 500_000, 60),
-    ("30min gym", 300_000, 30),
-    ("Group class", 350_000, 60),
-    ("Personal trainer 1h", 1_200_000, 60),
+    ("دسترسی ۱ ساعته", 500_000, 60),
+    ("دسترسی ۳۰ دقیقه‌ای", 300_000, 30),
+    ("کلاس گروهی", 350_000, 60),
+    ("مربی خصوصی ۱ ساعته", 1_200_000, 60),
 ]
+
+# Per-category offer templates
+CATEGORY_OFFERS = {
+    "gym": [
+        ("دسترسی ۱ ساعته باشگاه", 500_000, 60),
+        ("دسترسی ۳۰ دقیقه‌ای", 300_000, 30),
+        ("کلاس گروهی بدنسازی", 350_000, 60),
+        ("مربی خصوصی ۱ ساعته", 1_200_000, 60),
+    ],
+    "pool": [
+        ("شنا ۱ ساعته", 600_000, 60),
+        ("شنا + سونا", 800_000, 90),
+        ("شنا + جکوزی", 700_000, 60),
+        ("بلیط روزانه", 450_000, 120),
+    ],
+    "cinema": [
+        ("بلیط سینما", 250_000, 120),
+        ("بلیط سینما VIP", 500_000, 120),
+    ],
+    "yoga": [
+        ("کلاس یوگا ۱ ساعته", 400_000, 60),
+        ("کلاس مدیتیشن", 300_000, 45),
+        ("پکیج ۴ جلسه‌ای", 1_400_000, 60),
+    ],
+    "sport": [
+        ("رزرو زمین ۱ ساعته", 800_000, 60),
+        ("رزرو زمین ۳۰ دقیقه‌ای", 450_000, 30),
+    ],
+}
 
 
 class Command(BaseCommand):
     help = "Seed demo company, employees, gyms & offers"
 
     def handle(self, *args, **opts):
-        cat, _ = Category.objects.get_or_create(
-            slug="gym", defaults={"name_en": "Gym", "name_fa": "بدنسازی"}
-        )
+        # Create all categories
+        categories = {}
+        for slug, name_en, name_fa in [
+            ("gym", "Gym", "بدنسازی"),
+            ("pool", "Pool", "استخر"),
+            ("cinema", "Cinema", "سینما"),
+            ("yoga", "Yoga", "یوگا"),
+            ("sport", "Sport", "ورزشگاه"),
+        ]:
+            cat, _ = Category.objects.get_or_create(slug=slug, defaults={"name_en": name_en, "name_fa": name_fa})
+            categories[slug] = cat
+
         company, _ = Company.objects.get_or_create(
             name="Bagymo Demo Co.",
             defaults={"domain": "demo.local", "default_annual_budget": 8_000_000,
@@ -92,8 +136,31 @@ class Command(BaseCommand):
                 u.company = company; u.is_active=True; u.gender = gender
                 u.save()
 
-        # gyms + offers
+        # company_admin
+        ca = User.objects.filter(phone_number="0912000010").first()
+        if not ca:
+            ca = User.objects.create_user(phone_number="0912000010", name="HR Admin", role=User.Role.COMPANY_ADMIN,
+                                          company=company, is_verified=True, is_active=True)
+            ca.set_password("Admin12345")
+            ca.save()
+        else:
+            ca.company = company; ca.role = User.Role.COMPANY_ADMIN; ca.is_active = True
+            ca.save()
+
+        # platform admin (is_superuser for django admin panel)
+        pa = User.objects.filter(phone_number="0912000000").first()
+        if not pa:
+            pa = User.objects.create_superuser(phone_number="0912000000", name="Platform Admin",
+                                               role=User.Role.ADMIN, is_verified=True, is_active=True)
+            pa.set_password("Admin12345")
+            pa.save()
+        else:
+            pa.role = User.Role.ADMIN; pa.is_active = True; pa.is_staff = True; pa.is_superuser = True
+            pa.save()
+
+        # venues + offers
         for gm in SAMPLE_GYMS:
+            cat = categories[gm["category"]]
             venue = Venue.objects.filter(name=gm["name"]).first()
             if not venue:
                 venue = Venue.objects.create(
@@ -102,8 +169,11 @@ class Command(BaseCommand):
                     district=gm["district"], city=gm["city"],
                     status=Venue.Status.ACTIVE, is_verified=True,
                     gender_policy=gm["gender_policy"],
+                    description=gm.get("description", ""),
                 )
-            for oname, price, dur in OFFERS:
+            # category-specific offers
+            offers_for_cat = CATEGORY_OFFERS.get(gm["category"], OFFERS)
+            for oname, price, dur in offers_for_cat:
                 offer = Offer.objects.filter(venue=venue, name=oname).first()
                 if not offer:
                     Offer.objects.create(
@@ -131,13 +201,18 @@ class Command(BaseCommand):
                             defaults={"capacity": 10, "is_active": True},
                         )
 
-        # venue staff
-        v = Venue.objects.first()
-        User.objects.get_or_create(
-            phone_number="0912000009",
-            defaults={"name": "Gym Staff", "role": User.Role.VENUE_STAFF, "venue": v,
-                      "is_verified": True, "is_active": True}
-        )
+        # venue staff - one per venue
+        for i, venue in enumerate(Venue.objects.all(), start=1):
+            phone = f"09120000{80 + i:02d}"
+            user, created = User.objects.get_or_create(
+                phone_number=phone,
+                defaults={"name": f"Staff {venue.name}", "role": User.Role.VENUE_STAFF, "venue": venue,
+                          "is_verified": True, "is_active": True}
+            )
+            if not created:
+                user.venue = venue
+                user.role = User.Role.VENUE_STAFF
+                user.save(update_fields=["venue", "role"])
 
         self.stdout.write(self.style.SUCCESS(
             f"Seeded: company={company}, employees={User.objects.filter(company=company).count()}, "
@@ -158,3 +233,13 @@ class Command(BaseCommand):
             f"venue_commission={booking.venue_commission:,} "
             f"gym_gets={booking.venue_net_payout:,}"
         ))
+
+        # Sample ratings
+        ali = User.objects.get(phone_number="0912000001")
+        sara = User.objects.get(phone_number="0912000002")
+        venues = list(Venue.objects.filter(status="active"))
+        if len(venues) >= 2:
+            VenueRating.objects.get_or_create(venue=venues[0], user=ali, defaults={"score": 5, "comment": "عالی بود، حتماً دوباره می‌رم!"})
+            VenueRating.objects.get_or_create(venue=venues[1], user=sara, defaults={"score": 4, "comment": "خوب بود ولی شلوغ بود"})
+            VenueRating.objects.get_or_create(venue=venues[0], user=sara, defaults={"score": 4, "comment": "فضای خوبی دارد"})
+            self.stdout.write(self.style.SUCCESS("Seeded sample ratings."))

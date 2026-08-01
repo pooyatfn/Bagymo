@@ -1,6 +1,7 @@
 """Catalog serializers."""
 from rest_framework import serializers
-from .models import Category, Venue, Offer, VenueGenderSlot
+from django.db.models import Avg
+from .models import Category, Venue, Offer, VenueGenderSlot, VenueRating
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -25,23 +26,43 @@ class VenueGenderSlotSerializer(serializers.ModelSerializer):
         fields = ("id", "day_of_week", "start_time", "end_time", "gender", "is_active")
 
 
+class VenueRatingSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.name", read_only=True, default="")
+    user_phone = serializers.CharField(source="user.phone_number", read_only=True)
+
+    class Meta:
+        model = VenueRating
+        fields = ("id", "venue", "user", "user_name", "user_phone", "score", "comment", "created_at", "updated_at")
+        read_only_fields = ("user", "created_at", "updated_at")
+
+
 class VenueSerializer(serializers.ModelSerializer):
     offers = OfferSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source="category.name_en", read_only=True)
     category_slug = serializers.CharField(source="category.slug", read_only=True)
     gender_slots = VenueGenderSlotSerializer(many=True, read_only=True)
     gender_for_now = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
         fields = ("id", "name", "category", "category_name", "category_slug", "address", "lat", "lng",
                   "district", "city", "gender_policy", "gender_for_now", "gender_slots",
                   "description", "phone", "owner_name",
-                  "offers", "status", "is_verified", "created_at")
+                  "offers", "status", "is_verified", "created_at",
+                  "avg_rating", "rating_count")
         read_only_fields = ("status", "is_verified", "created_at")
 
     def get_gender_for_now(self, obj):
         return obj.gender_for_now()
+
+    def get_avg_rating(self, obj):
+        avg = obj.ratings.aggregate(avg=Avg("score"))["avg"]
+        return round(avg, 1) if avg else None
+
+    def get_rating_count(self, obj):
+        return obj.ratings.count()
 
 
 class VenueOnboardingSerializer(serializers.ModelSerializer):

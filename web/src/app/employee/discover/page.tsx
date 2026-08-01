@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import Navbar from "@/components/Navbar";
+import LocationPicker from "@/components/LocationPicker";
 
 const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
 
@@ -13,8 +14,7 @@ function formatTomans(n: number) {
 }
 
 export default function DiscoverPage() {
-  const { user, logout, refreshUser } = useAuth();
-  const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const [venues, setVenues] = useState<any[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
   const [offers, setOffers] = useState<any[]>([]);
@@ -24,11 +24,39 @@ export default function DiscoverPage() {
   const [booking, setBooking] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "map">("list");
+  const [venueRatings, setVenueRatings] = useState<any[]>([]);
+  const [ratingScore, setRatingScore] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState("");
 
   useEffect(() => {
     if (!user) return;
     api.get("/catalog/venues/").then((r) => setVenues(r.data.results || r.data)).catch(() => {});
   }, [user?.id]);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("مرورگر شما از موقعیت مکانی پشتیبانی نمی‌کند");
+      return;
+    }
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationError("");
+      },
+      (err) => {
+        const msg = err.code === 1 ? "دسترسی به موقعیت مکانی رد شد. از تنظیمات مرورگر اجازه دهید."
+          : err.code === 2 ? "موقعیت مکانی در دسترس نیست. روی دسکتاپ ممکن است GPS فعال نباشد."
+          : err.code === 3 ? "دریافت موقعیت مکانی بیش از حد طول کشید."
+          : "خطا در دریافت موقعیت مکانی.";
+        setLocationError(msg);
+      },
+      { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 }
+    );
+  };
 
   const loadOffers = async (venueId: number) => {
     const res = await api.get(`/catalog/venues/${venueId}/offers/`);
@@ -38,6 +66,31 @@ export default function DiscoverPage() {
   const loadTimeslots = async (offerId: number) => {
     const res = await api.get(`/catalog/offer-timeslots/${offerId}/`);
     setTimeslots(res.data);
+  };
+
+  const loadRatings = async (venueId: number) => {
+    const res = await api.get(`/catalog/venues/${venueId}/ratings/`);
+    setVenueRatings(res.data);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!selectedVenue) return;
+    setSubmittingRating(true);
+    try {
+      await api.post(`/catalog/venues/${selectedVenue.id}/rate/`, {
+        score: ratingScore,
+        comment: ratingComment,
+      });
+      setRatingComment("");
+      setRatingScore(5);
+      loadRatings(selectedVenue.id);
+      setVenues((prev) => prev.map((v) =>
+        v.id === selectedVenue.id ? { ...v, avg_rating: ratingScore, rating_count: (v.rating_count || 0) + 1 } : v
+      ));
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "خطا در ارسال نظر");
+    }
+    setSubmittingRating(false);
   };
 
   const handleSelectOffer = async (offer: any) => {
@@ -69,29 +122,42 @@ export default function DiscoverPage() {
 
   const userGender = (user as any).gender;
 
-  const filtered = venues.filter((v: any) => {
-    const matchesSearch = !search || v.name?.includes(search) || v.district?.includes(search);
-    if (!matchesSearch) return false;
-    const currentGender = v.gender_for_now || v.gender_policy;
-    if (!userGender) return true;
-    if (userGender === "male") return currentGender === "mixed" || currentGender === "male";
-    if (userGender === "female") return currentGender === "mixed" || currentGender === "female";
-    return true;
-  });
+  const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const filtered = venues
+    .filter((v: any) => {
+      const matchesSearch = !search || v.name?.includes(search) || v.district?.includes(search);
+      if (!matchesSearch) return false;
+      const currentGender = v.gender_for_now || v.gender_policy;
+      if (!userGender) return true;
+      if (userGender === "male") return currentGender === "mixed" || currentGender === "male";
+      if (userGender === "female") return currentGender === "mixed" || currentGender === "female";
+      return true;
+    })
+    .map((v: any) => ({
+      ...v,
+      _distance: userLocation && v.lat && v.lng
+        ? haversine(userLocation.lat, userLocation.lng, v.lat, v.lng)
+        : null,
+    }))
+    .sort((a: any, b: any) => {
+      if (a._distance === null) return 1;
+      if (b._distance === null) return -1;
+      return a._distance - b._distance;
+    });
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/employee/dashboard" className="text-lg font-bold text-emerald-700">باجیمو</Link>
-          <div className="flex items-center gap-3">
-            <Link href="/employee/dashboard" className="text-sm text-gray-600 hover:underline hidden sm:inline">داشبورد</Link>
-            <Link href="/employee/bookings" className="text-sm text-gray-600 hover:underline hidden sm:inline">رزروهای من</Link>
-            <span className="text-sm text-gray-600 hidden sm:inline">{user.phone_number}</span>
-            <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-900">کشف باشگاه‌ها</h1>
@@ -116,14 +182,41 @@ export default function DiscoverPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="جستجو بر اساس نام یا منطقه..."
-          className="mb-6 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
         />
+
+        {!userLocation && (
+          <div className="mb-4 space-y-3">
+            <LocationPicker
+              onPick={(lat, lng) => {
+                setUserLocation({ lat, lng });
+                setLocationError("");
+              }}
+              initialCenter={[35.6892, 51.3890]}
+              buttonText="📍 انتخاب موقعیت از نقشه"
+            />
+            <button
+              onClick={requestLocation}
+              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              📡 استفاده از موقعیت خودکار (GPS)
+            </button>
+            {locationError && <p className="text-xs text-amber-600">{locationError}</p>}
+          </div>
+        )}
+
+        {userLocation && (
+          <div className="mb-4 flex items-center justify-end rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2">
+            <button onClick={() => setUserLocation(null)} className="text-xs text-red-500 hover:underline">حذف موقعیت</button>
+          </div>
+        )}
 
         {view === "map" ? (
           <div className="mb-6 h-[500px] rounded-xl overflow-hidden shadow-sm border border-gray-200">
             <MapView
               venues={filtered}
-              onSelect={(v: any) => { setSelectedVenue(v); loadOffers(v.id); }}
+              userLocation={userLocation}
+              onSelect={(v: any) => { setSelectedVenue(v); loadOffers(v.id); loadRatings(v.id); }}
             />
           </div>
         ) : null}
@@ -132,7 +225,7 @@ export default function DiscoverPage() {
           {filtered.map((v: any) => (
             <div
               key={v.id}
-              onClick={() => { setSelectedVenue(v); loadOffers(v.id); }}
+              onClick={() => { setSelectedVenue(v); loadOffers(v.id); loadRatings(v.id); }}
               className="cursor-pointer rounded-xl bg-white p-5 shadow-sm transition hover:shadow-md"
             >
               <div className="mb-2 flex items-center justify-between">
@@ -145,8 +238,11 @@ export default function DiscoverPage() {
               </div>
               <p className="text-sm text-gray-600">{v.district} &middot; {v.city}</p>
               {v.address && <p className="mt-1 text-xs text-gray-600 truncate">{v.address}</p>}
-              {v.rating !== null && v.rating !== undefined && (
-                <p className="mt-1 text-sm text-amber-600">&#9733; {Number(v.rating).toFixed(1)}</p>
+              {v._distance != null && (
+                <p className="mt-1 text-xs text-emerald-600">{v._distance.toFixed(1)} کیلومتر</p>
+              )}
+              {v.avg_rating != null && (
+                <p className="mt-1 text-sm text-amber-600">&#9733; {v.avg_rating} <span className="text-xs text-gray-600">({v.rating_count} نظر)</span></p>
               )}
               {v.description && <p className="mt-2 line-clamp-2 text-sm text-gray-600">{v.description}</p>}
             </div>
@@ -155,7 +251,7 @@ export default function DiscoverPage() {
 
         {/* Offer Modal */}
         {selectedVenue && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }}>
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4" onClick={() => { setSelectedVenue(null); setSelectedOffer(null); setTimeslots([]); }}>
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">{selectedVenue.name}</h2>
@@ -277,6 +373,44 @@ export default function DiscoverPage() {
                   </div>
                 )
               )}
+
+              {/* Rating Section */}
+              <div className="mt-6 border-t border-gray-200 pt-4">
+                <h3 className="mb-3 text-sm font-semibold text-gray-700">نظرات کاربران</h3>
+                {venueRatings.length === 0 ? (
+                  <p className="text-xs text-gray-600 mb-3">هنوز نظری ثبت نشده.</p>
+                ) : (
+                  <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
+                    {venueRatings.map((r: any) => (
+                      <div key={r.id} className="rounded-lg bg-gray-50 p-2">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-amber-600 text-xs">{"★".repeat(r.score)}</span>
+                          <span className="text-xs text-gray-600">{r.user_name || r.user_phone}</span>
+                        </div>
+                        {r.comment && <p className="text-xs text-gray-700">{r.comment}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-gray-700">نظر شما:</p>
+                  <div className="mb-2 flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button key={s} onClick={() => setRatingScore(s)}
+                        className={`text-lg ${s <= ratingScore ? "text-amber-500" : "text-gray-300"}`}>
+                        &#9733;
+                      </button>
+                    ))}
+                  </div>
+                  <textarea value={ratingComment} onChange={(e) => setRatingComment(e.target.value)}
+                    placeholder="نظر خود را بنویسید (اختیاری)"
+                    className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-emerald-500 focus:outline-none" rows={2} />
+                  <button onClick={handleSubmitRating} disabled={submittingRating}
+                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+                    {submittingRating ? "در حال ارسال..." : "ارسال نظر"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

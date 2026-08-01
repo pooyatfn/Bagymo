@@ -12,6 +12,8 @@ class OTPVerifySerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True, default="")
+
     class Meta:
         model = User
         fields = [
@@ -25,9 +27,10 @@ class UserSerializer(serializers.ModelSerializer):
             "annual_budget",
             "sheba",
             "company",
+            "company_name",
             "created_at",
         ]
-        read_only_fields = ["id", "phone_number", "role", "is_verified", "remaining_budget", "annual_budget", "company", "created_at"]
+        read_only_fields = ["id", "phone_number", "role", "is_verified", "remaining_budget", "annual_budget", "company", "company_name", "created_at"]
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):

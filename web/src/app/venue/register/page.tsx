@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
 const CATEGORIES = [
   { slug: "gym", label: "باشگاه بدنسازی" },
@@ -13,7 +14,7 @@ const CATEGORIES = [
 ];
 
 export default function RegisterVenuePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({
     name: "", category_slug: "gym", address: "", lat: "", lng: "",
@@ -48,12 +49,7 @@ export default function RegisterVenuePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجیمو</span>
-          <button onClick={() => { logout(); router.push("/login"); }} className="text-sm text-red-500 hover:underline">خروج</button>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8">
         <h1 className="mb-2 text-2xl font-bold text-gray-900">ثبت باشگاه</h1>
         <p className="mb-6 text-sm text-gray-600">اطلاعات باشگاه خود را وارد کنید تا در پلتفرم نمایش داده شود.</p>

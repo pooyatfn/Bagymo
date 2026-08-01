@@ -85,3 +85,37 @@ class ProfileView(APIView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(UserSerializer(request.user).data)
+
+
+class AdminUserDetailView(APIView):
+    """Admin-only: get a user's profile and their bookings."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, user_id):
+        if request.user.role != "admin":
+            return Response({"detail": "Not allowed"}, status=403)
+        try:
+            target = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=404)
+
+        from bookings.models import Booking
+        bookings = Booking.objects.select_related("offer", "venue").filter(employee=target).order_by("-reserved_at")[:50]
+
+        return Response({
+            "user": UserSerializer(target).data,
+            "bookings": [
+                {
+                    "id": b.id,
+                    "venue_name": b.venue.name,
+                    "offer_name": b.offer.name,
+                    "price": b.price,
+                    "status": b.status,
+                    "reserved_at": b.reserved_at,
+                    "checked_in_at": b.checked_in_at,
+                    "cancelled_at": b.cancelled_at,
+                }
+                for b in bookings
+            ],
+        })

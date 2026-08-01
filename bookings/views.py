@@ -116,15 +116,18 @@ class BookingViewSet(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retr
 
         return Response({"ok": True, "detail": "Booking cancelled, budget refunded"})
 
-    @action(detail=True, methods=["post"], url_path="verify-checkin")
-    def verify_checkin(self, request, pk=None):
+    @action(detail=False, methods=["post"], url_path="verify-checkin")
+    def verify_checkin(self, request):
         """
         Staff enters the numeric check_in_code (or scans QR) to verify the booking.
-        In v1 the employee shows their code; staff inputs it here.
+        Looks up the booking by check_in_code (and optionally staff_code for staff context).
         """
         from billing.services import mark_checked_in
-        booking = self.get_object()
         code = request.data.get("check_in_code")
         staff_code = request.data.get("staff_code")
+        # lookup booking by check_in_code
+        booking = Booking.objects.filter(check_in_code=code).first()
+        if not booking:
+            return Response({"ok": False, "detail": "کد نامعتبر است"})
         ok, msg = mark_checked_in(booking, code, staff_code, request)
         return Response({"ok": ok, "detail": msg, "status": booking.status})

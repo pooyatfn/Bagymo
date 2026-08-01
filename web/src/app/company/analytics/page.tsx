@@ -2,14 +2,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 function formatTomans(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
 }
 
 export default function AnalyticsPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,17 +24,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/" className="text-lg font-bold text-emerald-700">باجیمو</Link>
-          <div className="flex items-center gap-3">
-            <Link href="/company/dashboard" className="text-sm text-gray-600 hover:underline">داشبورد</Link>
-            <Link href="/company/invoices" className="text-sm text-gray-600 hover:underline">فاکتورها</Link>
-            <span className="text-sm text-gray-600">{user.phone_number}</span>
-            <button onClick={() => { logout(); window.location.href = "/login"; }} className="text-sm text-red-500 hover:underline">خروج</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">گزارش و تحلیل</h1>
 
