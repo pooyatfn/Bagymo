@@ -59,7 +59,10 @@ export default function RegisterVenuePage() {
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setFetching(false);
+      return;
+    }
     api
       .get("/catalog/venue-profile/")
       .then((r) => {
