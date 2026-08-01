@@ -198,35 +198,16 @@ export default function RegisterVenuePage() {
                 value={form.city}
                 onChange={handleChange}
               />
-              <div className="sm:col-span-2">
-                <Input
-                  label="آدرس"
-                  name="address"
-                  placeholder="آدرس کامل مکان"
-                  value={form.address}
-                  onChange={handleChange}
-                />
-              </div>
-
+<div className="sm:col-span-2">
               <Input
-                label="عرض جغرافیایی (lat)"
-                name="lat"
-                type="number"
-                step="any"
-                placeholder="35.6892"
-                value={form.lat}
-                onChange={handleChange}
-              />
-              <Input
-                label="طول جغرافیایی (lng)"
-                name="lng"
-                type="number"
-                step="any"
-                placeholder="51.3890"
-                value={form.lng}
+                label="آدرس"
+                name="address"
+                placeholder="آدرس کامل مکان"
+                value={form.address}
                 onChange={handleChange}
               />
             </div>
+          </div>
 
             <div className="rounded-lg border border-dashed border-gray-200 p-4">
               <p className="mb-2 text-xs font-medium text-gray-600">
