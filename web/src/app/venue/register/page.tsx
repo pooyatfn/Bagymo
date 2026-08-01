@@ -45,12 +45,12 @@ export default function RegisterVenuePage() {
 
   const userId = user?.id;
 
-  // Redirect to login if not authenticated (but allow loading state to resolve first)
+  // Allow public access for new venue registration, but require auth for updates
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && existingVenue) {
       router.replace("/login?redirect=/venue/register");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, existingVenue]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -134,8 +134,6 @@ export default function RegisterVenuePage() {
       { enableHighAccuracy: true, timeout: 8000 }
     );
   };
-
-  if (!user) return null;
 
   return (
     <PageShell
