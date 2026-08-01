@@ -11,11 +11,11 @@ import { apiErrorDetail } from "@/lib/errors";
 import type { VenueProfile } from "@/lib/types";
 
 const CATEGORIES = [
-  { slug: "gym", label: "باشگاه بدنسازی" },
+  { slug: "gym", label: "مجتمع بدنسازی" },
   { slug: "pool", label: "استخر" },
   { slug: "cinema", label: "سینما" },
   { slug: "yoga", label: "یوگا" },
-  { slug: "sport", label: "ورزشگاه" },
+  { slug: "sport", label: "مجتمع ورزشی" },
 ];
 
 const DEFAULT_FORM = {
@@ -99,14 +99,14 @@ export default function RegisterVenuePage() {
           lat: form.lat ? parseFloat(form.lat) : null,
           lng: form.lng ? parseFloat(form.lng) : null,
         });
-        alert("پروفایل باشگاه به‌روزرسانی شد.");
+        alert("پروفایل مجتمع به‌روزرسانی شد.");
       } else {
         await api.post("/catalog/register-venue/", {
           ...form,
           lat: form.lat ? parseFloat(form.lat) : null,
           lng: form.lng ? parseFloat(form.lng) : null,
         });
-        alert("باشگاه شما ثبت شد و در انتظار تأیید ادمین است.");
+        alert("مجتمع شما ثبت شد و در انتظار تأیید ادمین است.");
         router.push("/venue/dashboard");
       }
     } catch (err) {
@@ -140,16 +140,16 @@ export default function RegisterVenuePage() {
 
   return (
     <PageShell
-      title={existingVenue ? "پروفایل باشگاه" : "ثبت باشگاه جدید"}
+      title={existingVenue ? "پروفایل مجتمع" : "ثبت مجتمع جدید"}
       subtitle={
         existingVenue
-          ? "اطلاعات باشگاه خود را به‌روز کنید."
-          : "اطلاعات باشگاه خود را وارد کنید تا در پلتفرم نمایش داده شود."
+          ? "اطلاعات مجتمع خود را به‌روز کنید."
+          : "اطلاعات مجتمع خود را وارد کنید تا در پلتفرم نمایش داده شود."
       }
     >
       {fetching ? (
         <p className="text-center text-gray-600 py-8 text-sm">
-          در حال بارگذاری اطلاعات باشگاه...
+          در حال بارگذاری اطلاعات مجتمع...
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -157,11 +157,11 @@ export default function RegisterVenuePage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Input
-                  label="نام باشگاه *"
+                  label="نام مجتمع *"
                   name="name"
                   value={form.name}
                   onChange={handleChange}
-                  placeholder="مثلاً: باشگاه آهنگ زندگی"
+                  placeholder="مثلاً: مجتمع آهنگ زندگی"
                   required
                 />
               </div>
@@ -253,7 +253,7 @@ export default function RegisterVenuePage() {
             <Textarea
               label="توضیحات"
               name="description"
-              placeholder="توضیح کوتاه درباره باشگاه..."
+              placeholder="توضیح کوتاه درباره مجتمع..."
               value={form.description}
               onChange={handleChange}
               rows={3}
@@ -273,14 +273,14 @@ export default function RegisterVenuePage() {
               {submitting
                 ? "در حال ثبت..."
                 : existingVenue
-                ? "به‌روزرسانی باشگاه"
-                : "ثبت باشگاه"}
+                ? "به‌روزرسانی مجتمع"
+                : "ثبت مجتمع"}
             </Button>
             {!existingVenue && (
               <Button
                 variant="ghost"
                 type="button"
-                onClick={() => router.push("/venue/dashboard")}
+                onClick={() => router.back()}
               >
                 صرف‌نظر
               </Button>

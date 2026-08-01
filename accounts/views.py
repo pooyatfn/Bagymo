@@ -27,7 +27,7 @@ class OTPRequestView(generics.GenericAPIView):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
         phone = ser.validated_data["phone_number"]
-        code = f"{random.randint(10000, 99999)}"
+        code = f"{random.randint(100000, 999999)}"
         cache.set(f"otp:{phone}", code, timeout=OTP_TTL_SECONDS)
 
         # In dev without gateway key, print code (flush for reliable capture)

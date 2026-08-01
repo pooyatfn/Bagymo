@@ -123,7 +123,7 @@ class Command(BaseCommand):
         )
 
         # users
-        specs = [("Ali", "0912000001", "a1111111", "male"), ("Sara", "0912000002", "s2222222", "female"), ("Reza", "0912000003", "r3333333", "male")]
+        specs = [("Ali", "09120000001", "a1111111", "male"), ("Sara", "09120000002", "s2222222", "female"), ("Reza", "09120000003", "r3333333", "male")]
         for n, phone, pw, gender in specs:
             u = User.objects.filter(phone_number=phone).first()
             if not u:
@@ -138,7 +138,7 @@ class Command(BaseCommand):
                 u.save()
 
         # company_admin
-        ca = User.objects.filter(phone_number="0912000010").first()
+        ca = User.objects.filter(phone_number="09120000010").first()
         if not ca:
             ca = User.objects.create_user(phone_number="0912000010", name="HR Admin", role=User.Role.COMPANY_ADMIN,
                                           company=company, is_verified=True, is_active=True)
@@ -149,7 +149,7 @@ class Command(BaseCommand):
             ca.save()
 
         # platform admin (is_superuser for django admin panel)
-        pa = User.objects.filter(phone_number="0912000000").first()
+        pa = User.objects.filter(phone_number="09120000000").first()
         if not pa:
             pa = User.objects.create_superuser(phone_number="0912000000", name="Platform Admin",
                                                role=User.Role.ADMIN, is_verified=True, is_active=True)
@@ -204,7 +204,7 @@ class Command(BaseCommand):
 
         # venue staff - one per venue
         for i, venue in enumerate(Venue.objects.all(), start=1):
-            phone = f"09120000{80 + i:02d}"
+            phone = f"09120000{80 + i:03d}"
             user, created = User.objects.get_or_create(
                 phone_number=phone,
                 defaults={"name": f"Staff {venue.name}", "role": User.Role.VENUE_STAFF, "venue": venue,
@@ -221,7 +221,7 @@ class Command(BaseCommand):
         ))
 
         # demo booking verifying commission math
-        ali = User.objects.get(phone_number="0912000001")
+        ali = User.objects.get(phone_number="09120000001")
         offer = Offer.objects.first()
         bal_before = ali.remaining_budget
         with transaction.atomic():
@@ -236,8 +236,8 @@ class Command(BaseCommand):
         ))
 
         # Sample ratings
-        ali = User.objects.get(phone_number="0912000001")
-        sara = User.objects.get(phone_number="0912000002")
+        ali = User.objects.get(phone_number="09120000001")
+        sara = User.objects.get(phone_number="09120000002")
         venues = list(Venue.objects.filter(status="active"))
         if len(venues) >= 2:
             VenueRating.objects.get_or_create(venue=venues[0], user=ali, defaults={"score": 5, "comment": "عالی بود، حتماً دوباره می‌رم!"})
