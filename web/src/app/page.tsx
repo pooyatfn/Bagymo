@@ -25,7 +25,8 @@ export default function Home() {
         venue_staff: "/venue/dashboard",
         admin: "/admin",
       };
-      router.replace(paths[user.role] || "/login");
+      const dest = paths[user.role];
+      if (dest) router.replace(dest);
     }
   }, [user, loading, router]);
 

@@ -59,8 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         const raw = localStorage.getItem("user");
-        if (raw) setUser(JSON.parse(raw));
-        else setUser(null);
+        if (raw) {
+          const cached: User = JSON.parse(raw);
+          if (["employee", "company_admin", "company_hr", "venue_staff", "admin"].includes(cached.role)) {
+            setUser(cached);
+          } else {
+            setUser(null);
+            localStorage.removeItem("user");
+            localStorage.removeItem("access");
+            localStorage.removeItem("refresh");
+            localStorage.removeItem("role");
+          }
+        } else setUser(null);
         setLoading(false);
       });
   }, []);
