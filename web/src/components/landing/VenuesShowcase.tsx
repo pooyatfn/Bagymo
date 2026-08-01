@@ -13,10 +13,10 @@ function VenueCard({ v }: { v: VenueLite }) {
     pool: "استخر",
     cinema: "سینما",
     yoga: "یوگا",
-    sport: "ورزشگاه",
+    sport: "مجتمع ورزشی",
   };
   return (
-    <Link href="/login" className="group">
+    <Link href={`/venues/${v.id}`} className="group">
       <Card hover border className="flex h-full flex-col p-0 overflow-hidden">
         <div className="relative h-40 bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center">
           {categoryIcon(v.category_slug)}
@@ -99,7 +99,7 @@ export function VenuesShowcase() {
             </div>
             <div className="mt-12 text-center">
               <Button variant="primary" asChild>
-                <Link href="/login">همه باشگاه‌ها را ببینید</Link>
+                <Link href="/user/discover">همه مجتمع‌ها را ببینید</Link>
               </Button>
             </div>
           </>

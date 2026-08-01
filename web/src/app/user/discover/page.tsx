@@ -102,6 +102,10 @@ export default function DiscoverPage() {
 
   const handleBook = async () => {
     if (!selectedOffer) return;
+    if (!user) {
+      alert("برای رزرو باید وارد شوید.");
+      return;
+    }
     setBooking(selectedOffer.id);
     try {
       const payload: { offer_id: number; timeslot_id?: number } = {
@@ -135,9 +139,11 @@ export default function DiscoverPage() {
     setOffers([]);
   };
 
-  if (!user) return null;
+  if (!user) {
+    // Allow public access to discover page, just without booking capabilities
+  }
 
-  const userGender = (user as { gender?: string }).gender;
+  const userGender = user ? (user as { gender?: string }).gender : undefined;
 
   const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
