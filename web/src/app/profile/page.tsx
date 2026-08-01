@@ -1,73 +1,94 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import Navbar from "@/components/Navbar";
+import { PageShell } from "@/components/PageShell";
+import { Button, Card, Input, Select } from "@/components/ui";
+import { useApi } from "@/lib/useApi";
+import { apiErrorDetail } from "@/lib/errors";
+
+interface ProfileData {
+  name: string;
+  sheba: string | null;
+  gender: "male" | "female" | null;
+}
+
+const roleLabels: Record<string, string> = {
+  employee: "کارمند",
+  company_admin: "مدیر شرکت",
+  company_hr: "منابع انسانی",
+  venue_staff: "کارمند باشگاه",
+  admin: "مدیر پلتفرم",
+};
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { data: profile, loading: fetching } = useApi<ProfileData>(
+    user ? "/auth/profile/" : null
+  );
   const [name, setName] = useState("");
   const [sheba, setSheba] = useState("");
   const [gender, setGender] = useState("");
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    api.get("/auth/profile/").then((r) => {
-      setName(r.data.name || "");
-      setSheba(r.data.sheba || "");
-      setGender(r.data.gender || "");
-    }).catch(() => {});
-  }, [user?.id]);
+  const companyName = (user as { company_name?: string }).company_name;
+
+  if (profile && !name) {
+    setName(profile.name || "");
+    setSheba(profile.sheba || "");
+    setGender(profile.gender || "");
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setSaved(false);
+    setError("");
     try {
-      await api.patch("/auth/profile/", { name, sheba, gender: gender || null });
+      await api.patch("/auth/profile/", {
+        name,
+        sheba,
+        gender: gender || null,
+      });
       setSaved(true);
+      refreshUser();
       setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "خطا در ذخیره");
+    } catch (err) {
+      setError(apiErrorDetail(err, "خطا در ذخیره‌سازی"));
     }
     setLoading(false);
   };
 
   if (!user) return null;
 
-  const roleLabels: Record<string, string> = {
-    employee: "کارمند",
-    company_admin: "مدیر شرکت",
-    venue_staff: "کارمند باشگاه",
-    admin: "مدیر پلتفرم",
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="mx-auto max-w-2xl px-4 sm:px-6 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">پروفایل</h1>
-
-        <div className="rounded-xl bg-white p-6 shadow-sm">
-          {/* Read-only info */}
-          <div className="mb-6 space-y-3">
-            <div className="flex justify-between text-sm">
+    <PageShell title="پروفایل">
+      {fetching ? (
+        <p className="text-center text-gray-600 py-8 text-sm">
+          در حال بارگذاری پروفایل...
+        </p>
+      ) : (
+        <Card className="p-6">
+          <div className="mb-6 space-y-3 text-sm">
+            <div className="flex justify-between">
               <span className="text-gray-600">شماره تلفن</span>
               <span className="font-medium text-gray-900">{user.phone_number}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between">
               <span className="text-gray-600">نقش</span>
-              <span className="font-medium text-gray-900">{roleLabels[user.role] || user.role}</span>
+              <span className="font-medium text-gray-900">
+                {roleLabels[user.role] || user.role}
+              </span>
             </div>
-            {(user as any).company_name && (
-              <div className="flex justify-between text-sm">
+            {companyName && (
+              <div className="flex justify-between">
                 <span className="text-gray-600">شرکت</span>
-                <span className="font-medium text-gray-900">{(user as any).company_name}</span>
+                <span className="font-medium text-gray-900">{companyName}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between">
               <span className="text-gray-600">بودجه باقیمانده</span>
               <span className="font-medium text-emerald-700">
                 {new Intl.NumberFormat("fa-IR").format(user.remaining_budget)} تومان
@@ -75,61 +96,56 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <hr className="mb-6" />
+          <hr className="mb-6 border-gray-200" />
 
-          {/* Editable fields */}
           <form onSubmit={handleSave} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">نام</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="نام خود را وارد کنید"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">شماره شبا</label>
-              <input
-                type="text"
-                value={sheba}
-                onChange={(e) => setSheba(e.target.value)}
-                placeholder="IR..."
-                maxLength={26}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-              />
-              <p className="mt-1 text-xs text-gray-600">برای دریافت وجه در صورت لغو رزرو</p>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">جنسیت</label>
-              <select
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-              >
-                <option value="">انتخاب کنید</option>
-                <option value="male">آقایان</option>
-                <option value="female">بانوان</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-600">برای نمایش باشگاه‌های مناسب جنسیت شما</p>
-            </div>
+            <Input
+              label="نام"
+              placeholder="نام خود را وارد کنید"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Input
+              label="شماره شبا"
+              placeholder="IR..."
+              maxLength={26}
+              value={sheba}
+              onChange={(e) => setSheba(e.target.value)}
+              className="font-mono text-xs"
+              dir="ltr"
+              helper="برای دریافت وجه در صورت لغو رزرو"
+            />
+            <Select
+              label="جنسیت"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              helper="برای نمایش باشگاه‌های مناسب جنسیت شما"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="male">آقایان</option>
+              <option value="female">بانوان</option>
+            </Select>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                variant="primary"
                 type="submit"
+                loading={loading}
                 disabled={loading}
-                className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 {loading ? "در حال ذخیره..." : "ذخیره تغییرات"}
-              </button>
+              </Button>
               {saved && (
-                <span className="text-sm text-emerald-600 font-medium">ذخیره شد!</span>
+                <span className="text-sm font-medium text-emerald-600">
+                  ذخیره شد!
+                </span>
               )}
             </div>
           </form>
-        </div>
-      </main>
-    </div>
+        </Card>
+      )}
+    </PageShell>
   );
 }

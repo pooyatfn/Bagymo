@@ -1,15 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
-
-interface Venue {
-  id: number;
-  name: string;
-  lat: number | null;
-  lng: number | null;
-  category_name?: string;
-  district?: string;
-  address?: string;
-}
+import { Venue } from "@/lib/types";
+import { getLeaflet, LMap, LMarker, LatLngExpression } from "@/lib/leaflet";
 
 interface Props {
   venues: Venue[];
@@ -18,12 +10,18 @@ interface Props {
 }
 
 export default function MapView({ venues, userLocation, onSelect }: Props) {
-  const mapRef = useRef<any>(null);
-  const leafletMap = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<LMap | null>(null);
+  const markersRef = useRef<LMarker[]>([]);
+  const userLocationRef = useRef(userLocation);
 
   useEffect(() => {
-    if (!mapRef.current || leafletMap.current) return;
+    userLocationRef.current = userLocation;
+  }, [userLocation]);
+
+  // Map init — runs once (deps empty), reads userLocation via ref.
+  useEffect(() => {
+    if (!mapRef.current) return;
 
     const loadLeaflet = async () => {
       if (!document.querySelector('link[href*="leaflet"]')) {
@@ -33,7 +31,7 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
         document.head.appendChild(link);
       }
 
-      if (!(window as any).L) {
+      if (!getLeaflet()) {
         await new Promise<void>((resolve) => {
           const script = document.createElement("script");
           script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
@@ -42,12 +40,17 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
         });
       }
 
-      const L = (window as any).L;
-      const center = userLocation ? [userLocation.lat, userLocation.lng] : [35.6892, 51.3890];
-      const map = L.map(mapRef.current).setView(center, userLocation ? 13 : 12);
+      const L = getLeaflet();
+      if (!L) return;
+
+      const loc = userLocationRef.current;
+      const center: LatLngExpression = loc
+        ? { lat: loc.lat, lng: loc.lng }
+        : { lat: 35.6892, lng: 51.389 };
+      const map = L.map(mapRef.current!).setView(center, loc ? 13 : 12);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap',
+        attribution: "&copy; OpenStreetMap",
         maxZoom: 19,
       }).addTo(map);
 
@@ -55,7 +58,7 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
       setTimeout(() => map.invalidateSize(), 100);
     };
 
-    loadLeaflet();
+    void loadLeaflet();
 
     return () => {
       if (leafletMap.current) {
@@ -65,17 +68,15 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
     };
   }, []);
 
-  // Update markers when venues or userLocation change
+  // Update markers / recenter when venues or location change.
   useEffect(() => {
     const map = leafletMap.current;
-    if (!map || !(window as any).L) return;
-    const L = (window as any).L;
+    const L = getLeaflet();
+    if (!map || !L) return;
 
-    // Clear old markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // User location marker
     if (userLocation) {
       const el = L.divIcon({
         className: "",
@@ -83,12 +84,14 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       });
-      const marker = L.marker([userLocation.lat, userLocation.lng], { icon: el }).addTo(map);
+      const marker = L.marker(
+        { lat: userLocation.lat, lng: userLocation.lng },
+        { icon: el }
+      ).addTo(map);
       markersRef.current.push(marker);
-      map.flyTo([userLocation.lat, userLocation.lng], 13);
+      map.flyTo({ lat: userLocation.lat, lng: userLocation.lng }, 13);
     }
 
-    // Venue markers
     venues.forEach((v) => {
       if (!v.lat || !v.lng) return;
       const el = L.divIcon({
@@ -97,11 +100,11 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       });
-      const marker = L.marker([v.lat, v.lng], { icon: el }).addTo(map);
+      const marker = L.marker({ lat: v.lat, lng: v.lng }, { icon: el }).addTo(map);
       marker.on("click", () => onSelect(v));
       markersRef.current.push(marker);
     });
-  }, [venues, userLocation]);
+  }, [venues, userLocation, onSelect]);
 
   return (
     <div className="relative h-full w-full">

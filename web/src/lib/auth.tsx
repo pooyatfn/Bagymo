@@ -40,22 +40,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const fetchUser = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("access");
-      if (!token) { setUser(null); setLoading(false); return; }
-      // try API first, fall back to localStorage
-      try {
-        const res = await api.get("/auth/profile/");
+  const fetchUser = useCallback(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access") : null;
+    if (!token) {
+      Promise.resolve()
+        .then(() => {
+          setUser(null);
+          setLoading(false);
+        });
+      return;
+    }
+    api
+      .get("/auth/profile/")
+      .then((res) => {
         localStorage.setItem("user", JSON.stringify(res.data));
         setUser(res.data);
-      } catch {
+        setLoading(false);
+      })
+      .catch(() => {
         const raw = localStorage.getItem("user");
         if (raw) setUser(JSON.parse(raw));
         else setUser(null);
-      }
-    } catch { setUser(null); }
-    setLoading(false);
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => { fetchUser(); }, [fetchUser]);

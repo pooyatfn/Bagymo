@@ -1,36 +1,52 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import Navbar from "@/components/Navbar";
+import { PageShell } from "@/components/PageShell";
+import {
+  Button,
+  Card,
+  Input,
+  Select,
+  LoadingState,
+  EmptyState,
+} from "@/components/ui";
+import { useApi } from "@/lib/useApi";
+import { formatTomans } from "@/lib/format";
+import { Offer, TimeSlot } from "@/lib/types";
+import { apiErrorDetail } from "@/lib/errors";
 
-function formatTomans(n: number) {
-  return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
-}
+const EMPTY_FORM = {
+  name: "",
+  price: "",
+  duration_minutes: "60",
+  description: "",
+  gender_restriction: "mixed",
+};
 
-const emptyForm = { name: "", price: "", duration_minutes: "60", description: "", gender_restriction: "mixed" };
+type OfferForm = typeof EMPTY_FORM;
 
 export default function VenueOffersPage() {
   const { user } = useAuth();
-  const [offers, setOffers] = useState<any[]>([]);
+  const { data: offers, loading: loadingOffers, refetch } = useApi<Offer[]>(
+    user ? "/catalog/venue-offers/" : null
+  );
   const [showForm, setShowForm] = useState(false);
-  const [editingOffer, setEditingOffer] = useState<any>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [form, setForm] = useState<OfferForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedOffer, setSelectedOffer] = useState<any>(null);
-  const [timeslots, setTimeslots] = useState<any[]>([]);
-  const [slotForm, setSlotForm] = useState({ date: "", start_time: "", end_time: "", capacity: "10" });
-
-  const load = () => {
-    if (!user) return;
-    api.get("/catalog/venue-offers/").then((r) => setOffers(r.data)).catch(() => {});
-  };
-
-  useEffect(() => { load(); }, [user?.id]);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [timeslots, setTimeslots] = useState<TimeSlot[]>([]);
+  const [slotForm, setSlotForm] = useState({
+    date: "",
+    start_time: "",
+    end_time: "",
+    capacity: "10",
+  });
 
   const loadSlots = async (offerId: number) => {
-    const res = await api.get(`/catalog/offer-timeslots/${offerId}/`);
+    const res = await api.get<TimeSlot[]>(`/catalog/offer-timeslots/${offerId}/`);
     setTimeslots(res.data);
   };
 
@@ -48,11 +64,11 @@ export default function VenueOffersPage() {
         description: form.description,
         gender_restriction: form.gender_restriction,
       });
-      setForm(emptyForm);
+      setForm(EMPTY_FORM);
       setShowForm(false);
-      load();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || JSON.stringify(err.response?.data) || "خطا در ایجاد آفر");
+      refetch();
+    } catch (err) {
+      setError(apiErrorDetail(err, "خطا در ایجاد آفر"));
     }
     setLoading(false);
   };
@@ -72,12 +88,12 @@ export default function VenueOffersPage() {
         description: form.description,
         gender_restriction: form.gender_restriction,
       });
-      setForm(emptyForm);
+      setForm(EMPTY_FORM);
       setEditingOffer(null);
       setShowForm(false);
-      load();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "خطا در ویرایش آفر");
+      refetch();
+    } catch (err) {
+      setError(apiErrorDetail(err, "خطا در ویرایش آفر"));
     }
     setLoading(false);
   };
@@ -86,13 +102,13 @@ export default function VenueOffersPage() {
     if (!confirm("آیا از حذف این آفر اطمینان دارید؟")) return;
     try {
       await api.delete(`/catalog/venue-offers/${offerId}/`);
-      load();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "خطا در حذف آفر");
+      refetch();
+    } catch (err) {
+      alert(apiErrorDetail(err, "خطا در حذف آفر"));
     }
   };
 
-  const startEdit = (offer: any) => {
+  const startEdit = (offer: Offer) => {
     setEditingOffer(offer);
     setForm({
       name: offer.name,
@@ -114,150 +130,294 @@ export default function VenueOffersPage() {
         end_time: slotForm.end_time,
         capacity: parseInt(slotForm.capacity),
       });
-      setSlotForm({ date: "", start_time: "", end_time: "", capacity: "10" });
+      setSlotForm({
+        date: "",
+        start_time: "",
+        end_time: "",
+        capacity: "10",
+      });
       loadSlots(selectedOffer.id);
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "خطا در ایجاد زمان‌بندی");
+    } catch (err) {
+      alert(apiErrorDetail(err, "خطا در ایجاد زمان‌بندی"));
     }
   };
 
   if (!user) return null;
 
+  const list = offers || [];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-6 sm:py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">آفرهای باشگاه</h1>
-          <button onClick={() => { setShowForm(!showForm); setEditingOffer(null); setForm(emptyForm); }}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-            + آفر جدید
-          </button>
-        </div>
-
-        {(showForm || editingOffer) && (
-          <form onSubmit={editingOffer ? handleEdit : handleCreate} className="mb-6 rounded-xl bg-white p-6 shadow-sm space-y-4">
-            <h2 className="font-semibold text-gray-900">{editingOffer ? "ویرایش آفر" : "آفر جدید"}</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-700">نام آفر *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required
-                  placeholder="مثلاً: دسترسی ۱ ساعته به باشگاه"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">قیمت (تومان) *</label>
-                <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} type="number" required min="1"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">مدت (دقیقه)</label>
-                <input value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} type="number" min="15"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">محدودیت جنسیتی</label>
-                <select value={form.gender_restriction} onChange={(e) => setForm({ ...form, gender_restriction: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
-                  <option value="mixed">مختلط</option>
-                  <option value="male">فقط آقایان</option>
-                  <option value="female">فقط خانم‌ها</option>
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">توضیحات</label>
-                <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none" />
-              </div>
-            </div>
-            {form.price && (
-              <p className="text-sm text-gray-600">
-                پرداخت به باشگاه: <span className="font-medium text-emerald-700">{formatTomans(Math.round(parseInt(form.price) * 0.94))}</span>
-                &nbsp;(۳٪ کارمزد کارمند + ۳٪ کارمزد باشگاه)
-              </p>
-            )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-2">
-              <button type="button" onClick={() => { setShowForm(false); setEditingOffer(null); setForm(emptyForm); }} className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600">انصراف</button>
-              <button type="submit" disabled={loading} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
-                {loading ? "در حال ذخیره..." : editingOffer ? "ذخیره تغییرات" : "ایجاد آفر"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {offers.length === 0 ? (
-          <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز آفری ندارید. آفر جدید ایجاد کنید.</p>
-        ) : (
-          <div className="space-y-3">
-            {offers.map((o: any) => (
-              <div key={o.id}>
-                <div className="flex items-center justify-between rounded-xl bg-white p-5 shadow-sm">
-                  <div>
-                    <p className="font-medium text-gray-900">{o.name}</p>
-                    <p className="text-sm text-gray-600">{o.duration_minutes} دقیقه &middot; {o.gender_restriction === "male" ? "آقایان" : o.gender_restriction === "female" ? "بانوان" : ""}</p>
+    <PageShell
+      title="آفرهای باشگاه"
+      action={
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => {
+            setShowForm(!showForm);
+            setEditingOffer(null);
+            setForm(EMPTY_FORM);
+          }}
+        >
+          + آفر جدید
+        </Button>
+      }
+    >
+      {loadingOffers ? (
+        <LoadingState message="در حال بارگذاری آفرها..." />
+      ) : (
+        <>
+          {(showForm || editingOffer) && (
+            <form
+              onSubmit={editingOffer ? handleEdit : handleCreate}
+              className="mb-6 space-y-4"
+            >
+              <Card className="p-6">
+                <h2 className="mb-4 font-semibold text-gray-900">
+                  {editingOffer ? "ویرایش آفر" : "آفر جدید"}
+                </h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="نام آفر *"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="مثلاً: دسترسی ۱ ساعته به باشگاه"
+                      required
+                    />
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-emerald-700">{formatTomans(o.price)}</p>
-                    <p className="text-xs text-gray-600">خالص پرداختی: {formatTomans(o.venue_payout)}</p>
-                    <div className="mt-1 flex items-center gap-2 justify-end">
-                      <button onClick={() => { setSelectedOffer(selectedOffer?.id === o.id ? null : o); loadSlots(o.id); }}
-                        className="text-xs text-emerald-600 hover:underline">
-                        {selectedOffer?.id === o.id ? "بستن زمان‌بندی" : "زمان‌بندی"}
-                      </button>
-                      <button onClick={() => startEdit(o)} className="text-xs text-blue-600 hover:underline">ویرایش</button>
-                      <button onClick={() => handleDelete(o.id)} className="text-xs text-red-500 hover:underline">حذف</button>
+                  <Input
+                    label="قیمت (تومان) *"
+                    type="number"
+                    min="1"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="مدت (دقیقه)"
+                    type="number"
+                    min="15"
+                    value={form.duration_minutes}
+                    onChange={(e) =>
+                      setForm({ ...form, duration_minutes: e.target.value })
+                    }
+                  />
+                  <Select
+                    label="محدودیت جنسیتی"
+                    value={form.gender_restriction}
+                    onChange={(e) =>
+                      setForm({ ...form, gender_restriction: e.target.value })
+                    }
+                  >
+                    <option value="mixed">مختلط</option>
+                    <option value="male">فقط آقایان</option>
+                    <option value="female">فقط خانم‌ها</option>
+                  </Select>
+                  <Input
+                    label="توضیحات"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
+                  />
+                </div>
+                {form.price && (
+                  <p className="pt-2 text-sm text-gray-600">
+                    پرداخت به باشگاه:{" "}
+                    <span className="font-medium text-emerald-700">
+                      {formatTomans(Math.round(parseInt(form.price) * 0.94))}
+                    </span>{" "}
+                    <span className="text-xs">(۳٪ کارمزد کارمند + ۳٪ کارمزد باشگاه)</span>
+                  </p>
+                )}
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </Card>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingOffer(null);
+                    setForm(EMPTY_FORM);
+                  }}
+                >
+                  انصراف
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  type="submit"
+                  loading={loading}
+                  disabled={loading}
+                >
+                  {loading
+                    ? "در حال ذخیره..."
+                    : editingOffer
+                    ? "ذخیره تغییرات"
+                    : "ایجاد آفر"}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {list.length === 0 ? (
+            <EmptyState
+              title="آفری وجود ندارد"
+              description="آفر جدیدی بسازید تا در داشبورد نمایش داده شود."
+              actionLabel="+ آفر جدید"
+              onAction={() => setShowForm(true)}
+            />
+          ) : (
+            <div className="space-y-3">
+              {list.map((o) => (
+                <Card key={o.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{o.name}</p>
+                      <p className="text-sm text-gray-600">
+                        {o.duration_minutes} دقیقه{" "}
+                        {o.gender_restriction === "male"
+                          ? "آقایان"
+                          : o.gender_restriction === "female"
+                          ? "بانوان"
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 ml-4">
+                      <p className="font-bold text-emerald-700">
+                        {formatTomans(o.price)}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        خالص پرداختی: {formatTomans(o.venue_payout)}
+                      </p>
+                      <div className="mt-1 flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedOffer(
+                              selectedOffer?.id === o.id ? null : o
+                            );
+                            loadSlots(o.id);
+                          }}
+                          className="text-xs text-emerald-600 hover:underline"
+                        >
+                          {selectedOffer?.id === o.id
+                            ? "بستن زمان‌بندی"
+                            : "زمان‌بندی"}
+                        </button>
+                        <button
+                          onClick={() => startEdit(o)}
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          ویرایش
+                        </button>
+                        <button
+                          onClick={() => handleDelete(o.id)}
+                          className="text-xs text-red-500 hover:underline"
+                        >
+                          حذف
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {selectedOffer?.id === o.id && (
-                  <div className="mt-2 rounded-xl bg-gray-50 p-4 border border-gray-200">
-                    <h3 className="mb-3 text-sm font-semibold text-gray-700">زمان‌بندی نوبت‌ها</h3>
-                    {timeslots.length > 0 && (
-                      <div className="mb-3 space-y-1">
-                        {timeslots.map((s: any) => (
-                          <div key={s.id} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
-                            <span className="text-gray-600">{s.date} | {s.start_time} - {s.end_time}</span>
-                            <span className={`font-medium ${s.is_available ? "text-emerald-600" : "text-red-500"}`}>
-                              {s.capacity === 0 ? "نامحدود" : `${s.remaining} باقیمانده`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <form onSubmit={handleCreateSlot} className="flex flex-wrap gap-2 items-end">
-                      <div>
-                        <label className="text-xs text-gray-600">تاریخ</label>
-                        <input type="date" value={slotForm.date} onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })} required
-                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">شروع</label>
-                        <input type="time" value={slotForm.start_time} onChange={(e) => setSlotForm({ ...slotForm, start_time: e.target.value })} required
-                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">پایان</label>
-                        <input type="time" value={slotForm.end_time} onChange={(e) => setSlotForm({ ...slotForm, end_time: e.target.value })} required
-                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-sm" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">ظرفیت</label>
-                        <input type="number" value={slotForm.capacity} onChange={(e) => setSlotForm({ ...slotForm, capacity: e.target.value })} min="0"
-                          className="block w-20 rounded border border-gray-300 px-2 py-1.5 text-sm" />
-                      </div>
-                      <button type="submit" className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700">
-                        افزودن
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+                  {selectedOffer?.id === o.id && (
+                    <div className="mt-2 rounded-lg bg-gray-50 p-4 border border-gray-200">
+                      <h3 className="mb-3 text-sm font-semibold text-gray-700">
+                        زمان‌بندی نوبت‌ها
+                      </h3>
+                      {timeslots.length > 0 && (
+                        <div className="mb-3 space-y-1">
+                          {timeslots.map((s) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm"
+                            >
+                              <span className="text-gray-600">
+                                {s.date} | {s.start_time} - {s.end_time}
+                              </span>
+                              <span
+                                className={`font-medium ${s.is_available ? "text-emerald-600" : "text-red-500"}`}
+                              >
+                                {s.capacity === 0
+                                  ? "نامحدود"
+                                  : `${s.remaining} باقیمانده`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <form
+                        onSubmit={handleCreateSlot}
+                        className="flex flex-wrap items-end gap-3"
+                      >
+                        <Input
+                          label="تاریخ"
+                          type="date"
+                          value={slotForm.date}
+                          onChange={(e) =>
+                            setSlotForm({ ...slotForm, date: e.target.value })
+                          }
+                          required
+                          className="max-w-[140px]"
+                        />
+                        <Input
+                          label="شروع"
+                          type="time"
+                          value={slotForm.start_time}
+                          onChange={(e) =>
+                            setSlotForm({
+                              ...slotForm,
+                              start_time: e.target.value,
+                            })
+                          }
+                          required
+                          className="max-w-[130px]"
+                        />
+                        <Input
+                          label="پایان"
+                          type="time"
+                          value={slotForm.end_time}
+                          onChange={(e) =>
+                            setSlotForm({
+                              ...slotForm,
+                              end_time: e.target.value,
+                            })
+                          }
+                          required
+                          className="max-w-[130px]"
+                        />
+                        <Input
+                          label="ظرفیت"
+                          type="number"
+                          min="0"
+                          value={slotForm.capacity}
+                          onChange={(e) =>
+                            setSlotForm({ ...slotForm, capacity: e.target.value })
+                          }
+                          required
+                          className="max-w-[100px]"
+                        />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          type="submit"
+                          className="mb-[18px]"
+                        >
+                          افزودن
+                        </Button>
+                      </form>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </PageShell>
   );
 }

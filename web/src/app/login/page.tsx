@@ -1,8 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui";
+import { Input } from "@/components/ui";
+import { SparklesIcon } from "@/components/icons";
 
 export default function LoginPage() {
   const { login, verify } = useAuth();
@@ -12,16 +15,30 @@ export default function LoginPage() {
   const [phase, setPhase] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (phase !== "otp") return;
+    if (resendCooldown === 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [phase, resendCooldown]);
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!/^09\d{9}$/.test(phone)) {
+      setError("شماره تلفن باید ۱۱ رقمی باشد و با ۰۹ شروع شود.");
+      return;
+    }
     setLoading(true);
     try {
       await login(phone);
       setPhase("otp");
+      setResendCooldown(120);
+      setError("");
     } catch {
-      setError("شماره تلفن نامعتبر است");
+      setError("ارسال کد با مشکل مواجه شد. شماره تلفن را بررسی کنید.");
     }
     setLoading(false);
   };
@@ -29,10 +46,14 @@ export default function LoginPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (code.length < 4) {
+      setError("کد تایید را کامل وارد کنید.");
+      return;
+    }
     setLoading(true);
     try {
-      const { created } = await verify(phone, code);
-      const role = localStorage.getItem("role");
+      await verify(phone, code);
+      const role = localStorage.getItem("role") || "employee";
       const paths: Record<string, string> = {
         employee: "/employee/dashboard",
         company_admin: "/company/dashboard",
@@ -40,89 +61,119 @@ export default function LoginPage() {
         venue_staff: "/venue/dashboard",
         admin: "/admin",
       };
-      router.push(paths[role || "employee"] || "/employee/dashboard");
+      router.push(paths[role] || "/employee/dashboard");
     } catch {
-      setError("کد نامعتبر است — کد توسعه را در ترمینال بررسی کنید");
+      setError("کد نامعتبر یا منقضی شده است.");
+    }
+    setLoading(false);
+  };
+
+  const handleResend = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await login(phone);
+      setResendCooldown(120);
+    } catch {
+      setError("ارسال مجدد انجام نشد. دوباره تلاش کنید.");
     }
     setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 px-4">
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-sm z-10">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <span className="text-lg font-bold text-emerald-700">باجیمو</span>
-          <div className="flex items-center gap-4">
-            <Link href="/venue/register" className="text-sm text-emerald-600 hover:underline">ثبت باشگاه</Link>
-            <span className="text-sm text-gray-400">|</span>
-            <span className="text-sm text-gray-600">ورود</span>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-50 px-4">
+      <div className="w-full max-w-md">
+        {/* Top branding bar */}
+        <div className="mb-6 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-emerald-700">
+            <SparklesIcon className="h-6 w-6" />
+            <span>باجیمو</span>
+          </Link>
+          <Link
+            href="/venue/register"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+          >
+            ثبت باشگاه جدید
+          </Link>
         </div>
-      </nav>
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg mt-12">
-        <h1 className="mb-1 text-center text-2xl font-bold text-emerald-700">باجیمو</h1>
-        <p className="mb-6 text-center text-sm text-gray-600">پلتفرم سلامت سازمانی</p>
 
-        {phase === "phone" ? (
-          <form onSubmit={handleRequest} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">شماره تلفن</label>
-              <input
+        <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
+          <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
+          <p className="mb-6 text-center text-sm text-gray-600">
+            با شماره موبیل خود وارد حساب کاربری شوید.
+          </p>
+
+          {phase === "phone" ? (
+            <form onSubmit={handleRequest} className="space-y-4">
+              <Input
+                label="شماره تلفن"
                 type="tel"
+                placeholder="0912 xxx 0000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="0912xxx0000"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                autoComplete="tel"
+                dir="ltr"
                 required
               />
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {loading ? "در حال ارسال..." : "ارسال کد تایید"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerify} className="space-y-4">
-            <p className="text-sm text-gray-600">
-              کد به <strong>{phone}</strong> ارسال شد
-            </p>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">کد تایید</label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="کد ۶ رقمی"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                required
-                autoFocus
-              />
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {loading ? "در حال تایید..." : "تایید و ورود"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setPhase("phone"); setCode(""); setError(""); }}
-              className="w-full text-center text-sm text-emerald-600 hover:underline"
-            >
-              تغییر شماره تلفن
-            </button>
-          </form>
-        )}
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
+                ارسال کد تایید
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <p className="text-center text-sm text-gray-600">
+                کد تایید ارسال شد به <strong dir="ltr" className="text-gray-900">{phone}</strong>
+              </p>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">کد تایید</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="کد ۶ رقمی"
+                  dir="ltr"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-mono text-center text-base tracking-[0.3em] text-gray-800 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
+                  required
+                  autoFocus
+                />
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
+                تایید و ورود
+              </Button>
+              <div className="flex items-center justify-between text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCode("");
+                    setError("");
+                    setPhase("phone");
+                  }}
+                  className="text-emerald-700 hover:underline"
+                >
+                  تغییر شماره تلفن
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || loading}
+                  className="text-emerald-700 hover:underline disabled:cursor-wait disabled:opacity-60"
+                >
+                  {resendCooldown > 0
+                    ? `ارسال مجدد (${resendCooldown}s)`
+                    : "ارسال مجدد کد"}
+                </button>
+              </div>
+            </form>
+          )}
 
-        <p className="mt-6 text-center text-xs text-gray-600">
-          حالت توسعه: کد OTP در خروجی سرور Django نمایش داده می‌شود
-        </p>
+          <div className="mt-6 text-center text-xs text-gray-600">
+            <span>© {new Date().getFullYear()} باجیمو — پلتفرم سلامت سازمانی.</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,172 +1,185 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import api from "@/lib/api";
-import Navbar from "@/components/Navbar";
-
-function formatTomans(n: number) {
-  return new Intl.NumberFormat("fa-IR").format(n) + " تومان";
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("fa-IR", { year: "numeric", month: "short", day: "numeric" });
-}
+import { PageShell } from "@/components/PageShell";
+import { Button, Card, LoadingState, EmptyState, ErrorState } from "@/components/ui";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useApi } from "@/lib/useApi";
+import { formatTomans, formatDate } from "@/lib/format";
+import { Invoice, Booking } from "@/lib/types";
 
 export default function InvoicesPage() {
   const { user } = useAuth();
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [tab, setTab] = useState<"invoices" | "bookings">("invoices");
+  const {
+    data: invoices,
+    loading: invoicesLoading,
+    error: invoicesError,
+  } = useApi<Invoice[]>(user ? "/billing/invoices/" : null);
+  const { data: bookings, loading: bookingsLoading } = useApi<Booking[]>(
+    user ? "/billing/company-bookings/" : null
+  );
 
-  useEffect(() => {
-    if (!user) return;
-    api.get("/billing/invoices/").then((r) => setInvoices(r.data.results || r.data)).catch(() => {});
-    api.get("/billing/company-bookings/").then((r) => setBookings(r.data.results || r.data)).catch(() => {});
-  }, [user?.id]);
+  const [tab, setTab] = useState<"invoices" | "bookings">("invoices");
 
   if (!user) return null;
 
-  const statusColors: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-600",
-    pending: "bg-amber-100 text-amber-700",
-    paid: "bg-emerald-100 text-emerald-700",
-    failed: "bg-red-100 text-red-600",
-  };
+  const invList = invoices || [];
+  const bookingList = bookings || [];
 
-  const statusLabels: Record<string, string> = {
-    draft: "پیش‌نویس",
-    pending: "در انتظار",
-    paid: "پرداخت شده",
-    failed: "ناموفق",
-  };
+  const totalBilled = invList.reduce((s, i) => s + (i.total_toman || 0), 0);
+  const totalBookingsCount = bookingList.length;
+  const totalSpent = bookingList.reduce(
+    (s, b) => s + (b.status !== "cancelled" ? b.price : 0),
+    0
+  );
 
-  const bookingStatusColors: Record<string, string> = {
-    reserved: "bg-blue-100 text-blue-700",
-    checked_in: "bg-emerald-100 text-emerald-700",
-    completed: "bg-gray-100 text-gray-600",
-    cancelled: "bg-red-100 text-red-600",
-    expired: "bg-amber-100 text-amber-700",
-  };
-
-  const bookingStatusLabels: Record<string, string> = {
-    reserved: "رزرو شده",
-    checked_in: "ورود تایید شده",
-    completed: "تکمیل شده",
-    cancelled: "لغو شده",
-    expired: "منقضی شده",
-  };
-
-  const totalBilled = invoices.reduce((s, i) => s + (i.total_toman || 0), 0);
-  const totalBookings = bookings.length;
-  const totalSpent = bookings.reduce((s, b) => s + (b.status !== "cancelled" ? b.price : 0), 0);
+  const loading = invoicesLoading || bookingsLoading;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">فاکتورها و رزروها</h1>
-
-        {/* Summary Cards */}
-        <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-600">کل صورتحساب</p>
-            <p className="text-xl font-bold text-emerald-700">{formatTomans(totalBilled)}</p>
+    <PageShell title="فاکتورها و رزروها">
+      {loading ? (
+        <LoadingState message="در حال بارگذاری..." />
+      ) : invoicesError ? (
+        <ErrorState onRetry={() => window.location.reload()} />
+      ) : (
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Card className="p-4 text-center">
+              <p className="text-xs text-gray-600">کل صورتحساب</p>
+              <p className="mt-1 text-xl font-bold text-emerald-700">
+                {formatTomans(totalBilled)}
+              </p>
+            </Card>
+            <Card className="p-4 text-center">
+              <p className="text-xs text-gray-600">تعداد رزروها</p>
+              <p className="mt-1 text-xl font-bold text-gray-900">
+                {totalBookingsCount}
+              </p>
+            </Card>
+            <Card className="p-4 text-center">
+              <p className="text-xs text-gray-600">کل هزینه</p>
+              <p className="mt-1 text-xl font-bold text-amber-600">
+                {formatTomans(totalSpent)}
+              </p>
+            </Card>
           </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-600">تعداد رزروها</p>
-            <p className="text-xl font-bold text-gray-900">{totalBookings}</p>
-          </div>
-          <div className="rounded-xl bg-white p-4 shadow-sm text-center">
-            <p className="text-xs text-gray-600">کل هزینه</p>
-            <p className="text-xl font-bold text-amber-600">{formatTomans(totalSpent)}</p>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2">
-          <button
-            onClick={() => setTab("invoices")}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "invoices" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
-          >
-            فاکتورها ({invoices.length})
-          </button>
-          <button
-            onClick={() => setTab("bookings")}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "bookings" ? "bg-emerald-600 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
-          >
-            رزروها ({bookings.length})
-          </button>
-        </div>
+          <div className="flex gap-2">
+            <Button
+              variant={tab === "invoices" ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => setTab("invoices")}
+            >
+              فاکتورها ({invList.length})
+            </Button>
+            <Button
+              variant={tab === "bookings" ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => setTab("bookings")}
+            >
+              رزروها ({bookingList.length})
+            </Button>
+          </div>
 
-        {tab === "invoices" ? (
-          invoices.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز فاکتوری ندارید.</p>
-          ) : (
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-200 bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">دوره</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">مبلغ</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">وضعیت</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {invoices.map((inv: any) => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-900">
-                        {formatDate(inv.period_start)} — {formatDate(inv.period_end)}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{formatTomans(inv.total_toman)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[inv.status] || ""}`}>
-                          {statusLabels[inv.status] || inv.status}
-                        </span>
-                      </td>
+          {tab === "invoices" ? (
+            invList.length === 0 ? (
+              <EmptyState
+                title="فاکتوری وجود ندارد"
+                description="صورتحساب دوره‌ای بعدی نمایش داده می‌شود."
+              />
+            ) : (
+              <Card className="overflow-hidden p-0">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-gray-200 bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 font-medium text-gray-600">
+                        دوره
+                      </th>
+                      <th className="px-4 py-3 font-medium text-gray-600">
+                        مبلغ
+                      </th>
+                      <th className="px-4 py-3 font-medium text-gray-600">
+                        وضعیت
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        ) : (
-          bookings.length === 0 ? (
-            <p className="rounded-lg bg-white p-8 text-center text-gray-600 shadow-sm">هنوز رزروی ندارید.</p>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {invList.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-900">
+                          {formatDate(inv.period_start)} —{" "}
+                          {formatDate(inv.period_end)}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {formatTomans(inv.total_toman)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={inv.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            )
+          ) : bookingList.length === 0 ? (
+            <EmptyState
+              title="رزروی وجود ندارد"
+              description="رزروهای کارکنان هرگاه ثبت شوند اینجا نشان داده می‌شوند."
+            />
           ) : (
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+            <Card className="overflow-hidden p-0">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">کارمند</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">باشگاه</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">آفر</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">مبلغ</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">وضعیت</th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      کارمند
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      باشگاه
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      آفر
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      مبلغ
+                    </th>
+                    <th className="px-4 py-3 font-medium text-gray-600">
+                      وضعیت
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {bookings.map((b: any) => (
+                  {bookingList.map((b) => (
                     <tr key={b.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{b.employee_name}</p>
-                        <p className="text-xs text-gray-600">{b.employee_phone}</p>
+                        <p className="font-medium text-gray-900">
+                          {b.employee_name}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {b.employee_phone}
+                        </p>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{b.venue_name}</td>
-                      <td className="px-4 py-3 text-gray-600">{b.offer_name}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{formatTomans(b.price)}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {b.venue_name}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {b.offer_name}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {formatTomans(b.price)}
+                      </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${bookingStatusColors[b.status] || ""}`}>
-                          {bookingStatusLabels[b.status] || b.status}
-                        </span>
+                        <StatusBadge status={b.status} />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )
-        )}
-      </main>
-    </div>
+            </Card>
+          )}
+        </div>
+      )}
+    </PageShell>
   );
 }
