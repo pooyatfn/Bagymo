@@ -11,10 +11,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from accounts.models import User
+from accounts.tokens import issue_tokens
 from billing.models import BudgetLedger, Invoice
+from catalog.models import Company
 from core.permissions import IsCompanyAdmin
 from .serializers import (
     EmployeeBudgetSerializer,
@@ -100,6 +102,53 @@ class EmployeeBudgetViewSet(viewsets.ModelViewSet):
                 description=desc,
             )
         return Response(EmployeeListSerializer(User.objects.get(pk=emp.pk)).data)
+
+
+from rest_framework.permissions import IsAuthenticated, AllowAny
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register_company(request):
+    """
+    POST /api/companies/register/
+    Register a new company with a company_admin user.
+    """
+    name = request.data.get("name")
+    email = request.data.get("email")
+    phone = request.data.get("phone_number")
+    password = request.data.get("password")
+    default_budget = request.data.get("default_annual_budget", 0)
+
+    if not name or not email or not phone or not password:
+        return Response({"detail": "name, email, phone_number و password الزامی‌اند."}, status=400)
+    if User.objects.filter(phone_number=phone).exists():
+        return Response({"detail": "شماره موبیل قبلاً ثبت شده است."}, status=400)
+    if not phone.startswith("09") or len(phone) != 11:
+        return Response({"detail": "شماره موبیل نامعتبر است."}, status=400)
+
+    with transaction.atomic():
+        company = Company(name=name, domain=email.split("@")[-1] if email else "", default_annual_budget=default_budget)
+        company.save()
+        admin = User.objects.create_user(
+            phone_number=phone,
+            name=name,
+            role=User.Role.COMPANY_ADMIN,
+            company=company,
+            is_verified=True,
+            is_active=True,
+        )
+        admin.set_password(password)
+        admin.save()
+
+    tokens = issue_tokens(admin)
+    return Response({
+        "company_id": company.id,
+        "company_name": company.name,
+        "user": {"id": admin.id, "phone_number": admin.phone_number, "name": admin.name, "role": admin.role},
+        "access": tokens["access"],
+        "refresh": tokens["refresh"],
+    }, status=201)
 
 
 @api_view(["GET"])

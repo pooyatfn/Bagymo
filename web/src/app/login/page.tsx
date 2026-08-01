@@ -16,6 +16,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [selectedRole, setSelectedRole] = useState<"employee" | "venue_staff" | "company_admin">("employee");
+
+  const roleLabels: Record<string, string> = {
+    employee: "کارمند",
+    venue_staff: "پرسنل باشگاه",
+    company_admin: "مدیر شرکت",
+  };
 
   useEffect(() => {
     if (phase !== "otp") return;
@@ -53,7 +60,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await verify(phone, code);
-      const role = localStorage.getItem("role") || "employee";
+      const role = localStorage.getItem("role") || selectedRole;
       const paths: Record<string, string> = {
         employee: "/employee/dashboard",
         company_admin: "/company/dashboard",
@@ -89,19 +96,50 @@ export default function LoginPage() {
             <SparklesIcon className="h-6 w-6" />
             <span>باجیمو</span>
           </Link>
-          <Link
-            href="/venue/register"
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-          >
-            ثبت باشگاه جدید
-          </Link>
+          <div className="flex items-center gap-3 text-sm">
+            <Link
+              href="/venue/register"
+              className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              ثبت باشگاه جدید
+            </Link>
+            {selectedRole === "company_admin" && (
+              <>
+                <span className="text-gray-300">|</span>
+                <Link
+                  href="/company/register"
+                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                >
+                  ثبت شرکت جدید
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
-          <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
-          <p className="mb-6 text-center text-sm text-gray-600">
-            با شماره موبیل خود وارد حساب کاربری شوید.
-          </p>
+           <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
+           <p className="mb-6 text-center text-sm text-gray-600">
+             با شماره موبیل خود وارد حساب کاربری شوید.
+           </p>
+
+           {/* Role Selector */}
+           <div className="mb-6 flex justify-center gap-1 rounded-lg bg-gray-100 p-1 text-xs font-medium">
+             {(["employee", "venue_staff", "company_admin"] as const).map((role) => (
+               <button
+                 key={role}
+                 type="button"
+                 onClick={() => setSelectedRole(role)}
+                 className={`rounded-md px-3 py-1.5 transition-all ${
+                   selectedRole === role
+                     ? "bg-emerald-600 text-white shadow-sm"
+                     : "text-gray-600 hover:text-gray-900"
+                 }`}
+               >
+                 {roleLabels[role]}
+               </button>
+             ))}
+           </div>
 
           {phase === "phone" ? (
             <form onSubmit={handleRequest} className="space-y-4">
