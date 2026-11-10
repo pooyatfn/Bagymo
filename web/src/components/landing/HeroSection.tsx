@@ -42,7 +42,6 @@ function FlowCard() {
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60rem_30rem_at_80%_-10%,var(--color-brand-100),transparent),radial-gradient(40rem_24rem_at_0%_10%,#e0f2fe,transparent)]" />
       <div className="site-container grid items-center gap-14 pb-24 pt-10 md:grid-cols-2 md:pt-16 xl:gap-24">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3.5 py-1.5 text-xs font-medium text-brand-800 shadow-sm ring-1 ring-brand-600/15">

@@ -12,7 +12,7 @@ const POINTS = [
 /** Split-screen layout for sign-in and registration pages. */
 export function AuthLayout({ children, wide }: { children: ReactNode; wide?: boolean }) {
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="page-backdrop flex min-h-screen">
       <aside className="relative hidden w-[42%] max-w-xl overflow-hidden bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-10 text-white lg:flex lg:flex-col">
         <div className="pointer-events-none absolute -start-24 -top-24 h-80 w-80 rounded-full bg-brand-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 end-0 h-96 w-96 rounded-full bg-white/5 blur-3xl" />

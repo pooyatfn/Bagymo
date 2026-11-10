@@ -299,7 +299,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
   };
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="page-backdrop-muted min-h-screen">
       <aside className="fixed inset-y-0 start-0 z-40 hidden w-64 border-e border-line bg-surface lg:block">
         <Sidebar user={user} pathname={pathname} onLogout={handleLogout} />
       </aside>

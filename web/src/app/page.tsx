@@ -9,7 +9,7 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-surface text-ink-900">
+    <div className="page-backdrop min-h-screen text-ink-900">
       <LandingHeader />
       <main>
         <HeroSection />

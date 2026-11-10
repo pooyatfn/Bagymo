@@ -11,7 +11,7 @@ export function VenuesShowcase() {
   const venues = (data ?? []).slice(0, 8);
 
   return (
-    <section id="venues" className="scroll-mt-28 bg-canvas pb-36 pt-20">
+    <section id="venues" className="scroll-mt-28 border-t border-line/70 bg-canvas/60 pb-36 pt-20">
       <div className="site-container">
         <div className="mx-auto max-w-xl text-center">
           <p className="text-sm font-semibold text-brand-700">شبکه مجموعه‌ها</p>

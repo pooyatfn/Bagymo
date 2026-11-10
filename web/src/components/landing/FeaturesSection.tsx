@@ -13,7 +13,7 @@ const iconMap: Record<string, ReactNode> = {
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="scroll-mt-28 bg-canvas py-20">
+    <section id="features" className="scroll-mt-28 border-y border-line/70 bg-canvas/60 py-20">
       <div className="site-container">
         <div className="mx-auto max-w-xl text-center">
           <p className="text-sm font-semibold text-brand-700">ویژگی‌ها</p>

@@ -90,7 +90,7 @@ export function PageShell({ title, subtitle, action, eyebrow, children, maxWidth
   if (!user) {
     if (access !== "public") return <LoadingState fullScreen message="در حال انتقال به صفحه ورود…" />;
     return (
-      <div className="flex min-h-screen flex-col bg-canvas">
+      <div className="page-backdrop flex min-h-screen flex-col">
         <SiteHeader solid />
         <div className="flex-1">{body}</div>
         <SiteFooter cta={false} />

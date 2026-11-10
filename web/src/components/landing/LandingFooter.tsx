@@ -37,7 +37,7 @@ export function LandingFooter({ cta = true }: { cta?: boolean }) {
   return (
     <footer>
       {cta && (
-        <div className="bg-canvas">
+        <div className="bg-canvas/60">
           <div className="site-container">
             <div className="relative translate-y-1/2 overflow-hidden rounded-3xl bg-gradient-to-l from-brand-600 via-brand-700 to-brand-900 px-6 py-10 text-white shadow-[var(--shadow-pop)] sm:px-12 lg:flex lg:items-center lg:justify-between">
               <div className="pointer-events-none absolute -start-20 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />

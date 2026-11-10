@@ -5,9 +5,9 @@ import { LandingFooter } from "@/components/landing/LandingFooter";
 /** Shell for the public content pages (FAQ, contact, terms, …): site header, title band, footer. */
 export function SitePage({ eyebrow, title, lead, children }: { eyebrow?: string; title: string; lead?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-canvas text-ink-900">
+    <div className="page-backdrop flex min-h-screen flex-col text-ink-900">
       <LandingHeader solid />
-      <div className="border-b border-line bg-surface">
+      <div className="border-b border-line bg-surface/70 backdrop-blur-sm">
         <div className="site-container py-12 lg:py-16">
           {eyebrow && <p className="text-sm font-semibold text-brand-700">{eyebrow}</p>}
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>
