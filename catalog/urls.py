@@ -1,12 +1,27 @@
 """Catalog API URLs."""
-from rest_framework import routers
 from django.urls import include, path
+from rest_framework import routers
+
 from .views import (
-    VenueViewSet, CategoryViewSet, register_venue, register_venue_public, venue_offers,
-    venue_profile, venue_profile_update, approve_venue, reject_venue,
-    pending_venues, offer_timeslots, venue_ratings, create_venue_rating,
-    company_info, admin_companies, pending_companies, approve_company,
+    CategoryViewSet,
+    VenueViewSet,
+    admin_companies,
+    admin_venues,
+    approve_company,
+    approve_venue,
+    company_info,
+    create_venue_rating,
+    offer_timeslots,
+    pending_companies,
+    pending_venues,
+    register_venue,
+    register_venue_public,
     reject_company,
+    reject_venue,
+    venue_offers,
+    venue_profile,
+    venue_profile_update,
+    venue_ratings,
 )
 
 router = routers.DefaultRouter()
@@ -22,6 +37,7 @@ urlpatterns = [
     path("venue-profile/", venue_profile, name="venue-profile"),
     path("venue-profile/update/", venue_profile_update, name="venue-profile-update"),
     path("pending-venues/", pending_venues, name="pending-venues"),
+    path("admin-venues/", admin_venues, name="admin-venues"),
     path("venues/<int:venue_id>/approve/", approve_venue, name="approve-venue"),
     path("venues/<int:venue_id>/reject/", reject_venue, name="reject-venue"),
     path("offer-timeslots/<int:offer_id>/", offer_timeslots, name="offer-timeslots"),

@@ -1,8 +1,9 @@
-from django.contrib import admin
-from django.contrib import messages
-from .models import Category, Company, Venue, VenueCompanyAccess
+from django.contrib import admin, messages
+
+from billing.models import BudgetLedger, Invoice, SettlementBatch
 from bookings.models import Booking
-from billing.models import BudgetLedger, SettlementBatch, Invoice
+
+from .models import Category, Company, Venue, VenueCompanyAccess
 
 
 @admin.register(Category)
@@ -19,7 +20,6 @@ class CompanyAdmin(admin.ModelAdmin):
 
     def approve(self, request, queryset):
         count = queryset.filter(status=Company.Status.PENDING).update(status=Company.Status.ACTIVE, is_active=True)
-        from accounts.models import User
         for company in queryset.filter(status=Company.Status.ACTIVE):
             company.users.filter(role="company_admin").update(is_active=True)
         self.message_user(request, f"{count} company/companies approved.", messages.SUCCESS)

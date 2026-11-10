@@ -1,11 +1,15 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
-import { useAuth } from "@/lib/auth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui";
-import { Input } from "@/components/ui";
-import { SparklesIcon } from "@/components/icons";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { AuthLayout } from "@/components/AuthLayout";
+import { Button, Input, Tabs } from "@/components/ui";
+import { ArrowLeftIcon, BuildingIcon, CheckCircleIcon, StoreIcon } from "@/components/icons";
+import { apiErrorDetail } from "@/lib/errors";
+import { formatNumber, toEnglishDigits } from "@/lib/format";
+import { homePathFor, safeRedirect } from "@/lib/roles";
+import type { User } from "@/lib/types";
 
 export default function LoginPage() {
   return (
@@ -15,310 +19,226 @@ export default function LoginPage() {
   );
 }
 
+type Method = "phone" | "email";
+
 function LoginInner() {
-  const { login, verify, loginWithEmail } = useAuth();
+  const { user, loading: authLoading, login, verify, loginWithEmail } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useSearchParams();
+  const redirect = safeRedirect(params.get("redirect"));
+  const registered = params.get("registered");
+
+  const [method, setMethod] = useState<Method>(params.get("tab") === "email" ? "email" : "phone");
+  const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phase, setPhase] = useState<"phone" | "otp" | "email">("phone");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [selectedRole, setSelectedRole] = useState<"user" | "venue_staff" | "company_admin">("user");
+  const [cooldown, setCooldown] = useState(0);
 
-  const roleLabels: Record<string, string> = {
-    user: "کاربر",
-    venue_staff: "مدیر مجتمع",
-    company_admin: "مدیر شرکت",
-  };
+  // already signed in → go to the panel
+  useEffect(() => {
+    if (!authLoading && user) router.replace(redirect || homePathFor(user.role));
+  }, [authLoading, user, redirect, router]);
 
   useEffect(() => {
-    if (phase !== "otp") return;
-    if (resendCooldown === 0) return;
-    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [phase, resendCooldown]);
+  }, [cooldown]);
 
-  useEffect(() => {
-    const tab = searchParams?.get("tab");
-    if (tab === "email" && selectedRole === "user") setPhase("email");
-  }, [searchParams, selectedRole]);
+  const go = (u: User) => router.replace(redirect || homePathFor(u.role));
+  const normalizedPhone = toEnglishDigits(phone).replace(/\D/g, "");
 
-  const handleRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const requestCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError("");
-    if (!/^09\d{9}$/.test(phone)) {
-      setError("شماره تلفن باید ۱۱ رقمی باشد و با ۰۹ شروع شود.");
+    if (!/^09\d{9}$/.test(normalizedPhone)) {
+      setError("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.");
       return;
     }
-    setLoading(true);
+    setBusy(true);
     try {
-      await login(phone);
-      setPhase("otp");
-      setResendCooldown(120);
-      setError("");
-    } catch {
-      setError("ارسال کد با مشکل مواجه شد. شماره تلفن را بررسی کنید.");
+      await login(normalizedPhone);
+      setStep("otp");
+      setCode("");
+      setCooldown(120);
+    } catch (err) {
+      setError(apiErrorDetail(err, "ارسال کد ممکن نشد. دوباره تلاش کنید."));
     }
-    setLoading(false);
+    setBusy(false);
   };
 
-  const handleVerify = async (e: React.FormEvent) => {
+  const submitCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    const trimmedCode = code.trim();
-    if (trimmedCode.length !== 6) {
-      setError("کد تایید باید ۶ رقمی باشد.");
+    const c = toEnglishDigits(code).replace(/\D/g, "");
+    if (c.length !== 6) {
+      setError("کد تایید ۶ رقمی است.");
       return;
     }
-    setLoading(true);
+    setBusy(true);
+    setError("");
     try {
-      await verify(phone, trimmedCode);
-      const redirect = searchParams?.get("redirect");
-      if (redirect) {
-        router.push(redirect);
-      } else {
-        const role = localStorage.getItem("role") || selectedRole;
-        const paths: Record<string, string> = {
-          user: "/user/dashboard",
-          company_admin: "/company/dashboard",
-          company_hr: "/company/dashboard",
-          venue_staff: "/venue/dashboard",
-          admin: "/admin",
-        };
-        router.push(paths[role] || "/user/dashboard");
-      }
-    } catch {
-      setError("کد نامعتبر یا منقضی شده است.");
+      const { user: u } = await verify(normalizedPhone, c);
+      go(u);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      setError(status === 403 ? "حساب سازمان شما هنوز توسط باجیمو تأیید نشده است." : "کد وارد شده نادرست یا منقضی است.");
+      setBusy(false);
     }
-    setLoading(false);
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const submitEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email.includes("@") || !password) {
-      setError("ایمیل و رمز عبور را وارد کنید.");
-      return;
-    }
-    setLoading(true);
+    setBusy(true);
     try {
-      await loginWithEmail(email, password);
-      const redirect = searchParams?.get("redirect");
-      if (redirect) {
-        router.push(redirect);
-      } else {
-        const role = localStorage.getItem("role") || selectedRole;
-        const paths: Record<string, string> = {
-          user: "/user/dashboard",
-          company_admin: "/company/dashboard",
-          company_hr: "/company/dashboard",
-          venue_staff: "/venue/dashboard",
-          admin: "/admin",
-        };
-        router.push(paths[role] || "/user/dashboard");
-      }
-    } catch {
-      setError("ورود با ایمیل و رمز عبور ناموفق بود.");
+      go(await loginWithEmail(email.trim(), password));
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      setError(
+        status === 403 ? "حساب سازمان شما هنوز در انتظار تأیید است." : status === 401 ? "ایمیل یا رمز عبور نادرست است." : apiErrorDetail(err),
+      );
+      setBusy(false);
     }
-    setLoading(false);
-  };
-
-  const handleResend = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      await login(phone);
-      setResendCooldown(120);
-    } catch {
-      setError("ارسال مجدد انجام نشد. دوباره تلاش کنید.");
-    }
-    setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-50 px-4">
-      <div className="w-full max-w-md">
-        {/* Top branding bar */}
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-emerald-700">
-            <SparklesIcon className="h-6 w-6" />
-            <span>باجیمو</span>
-          </Link>
-<div className="flex items-center gap-3 text-sm">
-              {selectedRole === "venue_staff" && (
-                <Link
-                  href="/venue/register"
-                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-                >
-                  ثبت نام مجتمع جدید
-                </Link>
-              )}
-              {selectedRole === "company_admin" && (
-                <Link
-                  href="/company/register"
-                  className="font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-                >
-                  ثبت شرکت جدید
-                </Link>
-              )}
-            </div>
-         </div>
-        
-        <div className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-200/50">
-           <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ورود</h1>
-           <p className="mb-6 text-center text-sm text-gray-600">
-             با شماره موبیل خود وارد حساب کاربری شوید.
-           </p>
+    <AuthLayout>
+      <h1 className="text-2xl font-bold text-ink-900">ورود به باجیمو</h1>
+      <p className="mt-2 text-sm text-ink-500">کارکنان، مدیران سازمان و مجموعه‌ها از این‌جا وارد پنل خود می‌شوند.</p>
 
-          {/* Role Selector */}
-          <div className="mb-6 flex justify-center gap-1 rounded-lg bg-gray-100 p-1 text-xs font-medium">
-            {(["user", "venue_staff", "company_admin"] as const).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setSelectedRole(role)}
-                className={`rounded-md px-3 py-1.5 transition-all ${
-                  selectedRole === role
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {roleLabels[role]}
+      {registered && (
+        <div className="mt-6 flex gap-3 rounded-2xl bg-brand-50 p-4 text-sm text-brand-900">
+          <CheckCircleIcon className="h-5 w-5 shrink-0 text-brand-600" />
+          <p>
+            {registered === "company"
+              ? "ثبت سازمان انجام شد. پس از تأیید کارشناسان باجیمو، با ایمیل و رمز عبور وارد شوید."
+              : "ثبت مجموعه انجام شد. پس از تأیید، با شماره موبایل مدیر مجموعه وارد شوید."}
+          </p>
+        </div>
+      )}
+
+      <Tabs
+        className="mt-8"
+        value={method}
+        onChange={(m) => {
+          setMethod(m);
+          setError("");
+        }}
+        items={[
+          { key: "phone", label: "شماره موبایل" },
+          { key: "email", label: "ایمیل سازمانی" },
+        ]}
+      />
+
+      <div className="mt-6">
+        {method === "phone" && step === "phone" && (
+          <form onSubmit={requestCode} className="space-y-5">
+            <Input
+              label="شماره موبایل"
+              type="tel"
+              inputMode="numeric"
+              placeholder="09123456789"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoComplete="tel"
+              autoFocus
+              error={error || undefined}
+            />
+            <Button type="submit" size="lg" className="w-full" loading={busy}>
+              دریافت کد تایید
+            </Button>
+          </form>
+        )}
+
+        {method === "phone" && step === "otp" && (
+          <form onSubmit={submitCode} className="space-y-5">
+            <div className="flex items-center justify-between rounded-xl bg-canvas px-4 py-3 text-sm">
+              <span className="text-ink-500">
+                کد به <b dir="ltr" className="text-ink-900">{phone}</b> پیامک شد
+              </span>
+              <button type="button" onClick={() => setStep("phone")} className="font-medium text-brand-700 hover:text-brand-800">
+                ویرایش
               </button>
-            ))}
-          </div>
-
-          {searchParams?.get("registered") === "company" && (
-            <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-              شرکت شما ثبت شد. پس از تایید توسط ادمین، می‌توانید با این شماره وارد شوید.
             </div>
-          )}
-
-          {phase === "phone" ? (
-            <form onSubmit={handleRequest} className="space-y-4">
-              <Input
-                label="شماره تلفن"
-                type="tel"
-                placeholder="0912 xxx 0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
+            <div>
+              <label htmlFor="otp" className="mb-1.5 block text-sm font-medium text-ink-700">
+                کد تایید
+              </label>
+              <input
+                id="otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  setCode(toEnglishDigits(e.target.value).replace(/\D/g, ""));
+                  setError("");
+                }}
+                placeholder="------"
                 dir="ltr"
-                required
+                autoFocus
+                className="h-14 w-full rounded-xl border border-line bg-surface text-center font-mono text-2xl tracking-[0.6em] text-ink-900 shadow-sm placeholder:text-ink-400/50 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
               />
-              <div className="mt-2 text-center text-sm">
-                <button
-                  type="button"
-                  onClick={() => setPhase("email")}
-                  className="text-emerald-700 hover:underline"
-                >
-                  ورود با ایمیل و رمز عبور
+              {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+            </div>
+            <Button type="submit" size="lg" className="w-full" loading={busy} disabled={code.length !== 6}>
+              ورود
+            </Button>
+            <p className="text-center text-sm text-ink-500">
+              {cooldown > 0 ? (
+                <>ارسال مجدد کد تا {formatNumber(cooldown)} ثانیه دیگر</>
+              ) : (
+                <button type="button" onClick={() => requestCode()} className="font-medium text-brand-700 hover:text-brand-800">
+                  ارسال مجدد کد
                 </button>
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
-                ارسال کد تایید
-              </Button>
-            </form>
-          ) : phase === "email" ? (
-             <form onSubmit={handleEmailLogin} className="space-y-4">
-               <Input
-                 label="ایمیل"
-                 type="email"
-                 placeholder="example@email.com"
-                 value={email}
-                 onChange={(e) => setEmail(e.target.value)}
-                 autoComplete="email"
-                 required
-               />
-               <Input
-                 label="رمز عبور"
-                 type="password"
-                 placeholder="••••••••"
-                 value={password}
-                 onChange={(e) => setPassword(e.target.value)}
-                 autoComplete="current-password"
-                 required
-               />
-               {error && <p className="text-sm text-red-600">{error}</p>}
-               <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
-                 ورود
-               </Button>
-               <div className="text-center text-sm">
-                 <button
-                   type="button"
-                   onClick={() => { setPhase("phone"); setEmail(""); setPassword(""); setError(""); }}
-                   className="text-emerald-700 hover:underline"
-                 >
-                   بازگشت به ورود با کد تایید
-                 </button>
-               </div>
-             </form>
-           ) : (
-            <form onSubmit={handleVerify} className="space-y-4">
-              <p className="text-center text-sm text-gray-600">
-                کد تایید ارسال شد به <strong dir="ltr" className="text-gray-900">{phone}</strong>
-              </p>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">کد تایید</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="کد ۶ رقمی"
-                  dir="ltr"
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-mono text-center text-base tracking-[0.3em] text-gray-800 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none"
-                  required
-                  autoFocus
-                />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
-                تایید و ورود
-              </Button>
-              <div className="flex items-center justify-between text-center text-sm">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCode("");
-                    setError("");
-                    setPhase("phone");
-                  }}
-                  className="text-emerald-700 hover:underline"
-                >
-                  تغییر شماره تلفن
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendCooldown > 0 || loading}
-                  className="text-emerald-700 hover:underline disabled:cursor-wait disabled:opacity-60"
-                >
-                  {resendCooldown > 0
-                    ? `ارسال مجدد (${resendCooldown}s)`
-                    : "ارسال مجدد کد"}
-                </button>
-              </div>
-            </form>
-          )}
+              )}
+            </p>
+          </form>
+        )}
 
-          <div className="mt-6 text-center text-xs text-gray-600">
-            <span>© {new Date().getFullYear()} باجیمو — پلتفرم سلامت سازمانی.</span>
-          </div>
-        </div>
+        {method === "email" && (
+          <form onSubmit={submitEmail} className="space-y-5">
+            <Input label="ایمیل" type="email" placeholder="hr@company.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required autoFocus />
+            <Input
+              label="رمز عبور"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              error={error || undefined}
+            />
+            <Button type="submit" size="lg" className="w-full" loading={busy}>
+              ورود
+            </Button>
+          </form>
+        )}
+      </div>
 
-        <div className="mt-4 text-center">
-          <Link href="/" className="text-sm text-emerald-700 hover:underline">
-            بازگشت به صفحه اصلی
+      <div className="mt-10 border-t border-line pt-6">
+        <p className="mb-3 text-xs font-medium text-ink-500">حساب ندارید؟</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link href="/company/register" className="group flex items-center gap-3 rounded-2xl border border-line p-3.5 transition hover:border-brand-300 hover:bg-brand-50/40">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+              <BuildingIcon className="h-5 w-5" />
+            </span>
+            <span className="flex-1 text-sm font-medium text-ink-900">ثبت سازمان</span>
+            <ArrowLeftIcon className="h-4 w-4 text-ink-400 transition group-hover:-translate-x-0.5" />
+          </Link>
+          <Link href="/venue/register" className="group flex items-center gap-3 rounded-2xl border border-line p-3.5 transition hover:border-brand-300 hover:bg-brand-50/40">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+              <StoreIcon className="h-5 w-5" />
+            </span>
+            <span className="flex-1 text-sm font-medium text-ink-900">ثبت مجموعه</span>
+            <ArrowLeftIcon className="h-4 w-4 text-ink-400 transition group-hover:-translate-x-0.5" />
           </Link>
         </div>
+        <p className="mt-4 text-xs leading-6 text-ink-500">کارکنان نیازی به ثبت‌نام ندارند؛ با شماره موبایلی که سازمان ثبت کرده وارد شوید.</p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

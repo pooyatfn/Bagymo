@@ -1,232 +1,121 @@
 "use client";
-import { useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/useApi";
 import { PageShell } from "@/components/PageShell";
-import { Card, LoadingState, Badge } from "@/components/ui";
-import { formatTomans } from "@/lib/format";
-import { MapPinIcon, StarIconSolid, DumbbellIcon, PoolIcon, FilmIcon, YogaIcon, BallIcon, MapPinIcon as MapPin } from "@/components/icons";
-import { Venue, Offer, VenueRating } from "@/lib/types";
-import { apiErrorDetail } from "@/lib/errors";
-
-const categoryLabels: Record<string, string> = {
-  gym: "بدنسازی",
-  pool: "استخر",
-  cinema: "سینما",
-  yoga: "یوگا",
-  sport: "مجتمع ورزشی",
-};
-
-const categoryIcons: Record<string, React.ReactNode> = {
-  gym: <DumbbellIcon className="h-10 w-10 text-emerald-600/30" />,
-  pool: <PoolIcon className="h-10 w-10 text-blue-600/30" />,
-  cinema: <FilmIcon className="h-10 w-10 text-purple-600/30" />,
-  yoga: <YogaIcon className="h-10 w-10 text-amber-600/30" />,
-  sport: <BallIcon className="h-10 w-10 text-green-600/30" />,
-};
-
-function categoryIcon(slug: string): React.ReactNode {
-  return categoryIcons[slug] || <MapPin className="h-10 w-10 text-emerald-600/30" />;
-}
+import { Badge, Button, Card, CardHeader, EmptyState, LoadingState } from "@/components/ui";
+import { ArrowLeftIcon, ClockIcon, MapPinIcon, StarIconSolid, StoreIcon } from "@/components/icons";
+import { categoryMeta } from "@/lib/categories";
+import { cn } from "@/lib/cn";
+import { formatNumber, formatTomans, GENDER_LABELS } from "@/lib/format";
+import type { Offer, Venue, VenueRating } from "@/lib/types";
 
 export default function VenueDetailPage() {
-  const params = useParams();
-  const venueId = params.id as string;
-  const { data: venue, loading: venueLoading, refetch } = useApi<Venue>(venueId ? `/catalog/venues/${venueId}/` : null);
-  const { data: offers, loading: offersLoading } = useApi<Offer[]>(venueId ? `/catalog/venues/${venueId}/offers/` : null);
-  const { data: ratings, loading: ratingsLoading } = useApi<VenueRating[]>(venueId ? `/catalog/venues/${venueId}/ratings/` : null);
+  const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const { data: venue, loading } = useApi<Venue>(id ? `/catalog/venues/${id}/` : null);
+  const { data: offers } = useApi<Offer[]>(id ? `/catalog/venues/${id}/offers/` : null);
+  const { data: ratings } = useApi<VenueRating[]>(id && user ? `/catalog/venues/${id}/ratings/` : null);
 
-  if (venueLoading) {
+  const back = (
+    <Link href={user?.role === "user" ? "/user/discover" : "/venues"} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:text-brand-800">
+      <ArrowLeftIcon className="h-4 w-4 rotate-180" /> {user?.role === "user" ? "بازگشت به کشف مجموعه‌ها" : "همه مجموعه‌ها"}
+    </Link>
+  );
+
+  if (loading) return <PageShell access="public">{<LoadingState />}</PageShell>;
+  if (!venue)
     return (
-      <PageShell title="مجتمع" maxWidth="5xl" padded={false}>
-        <div className="flex h-[50vh] items-center justify-center">
-          <LoadingState message="در حال بارگذاری..." />
-        </div>
+      <PageShell access="public" eyebrow={back}>
+        <Card>
+          <EmptyState icon={<StoreIcon />} title="مجموعه پیدا نشد" description="ممکن است این مجموعه غیرفعال شده باشد." />
+        </Card>
       </PageShell>
     );
-  }
 
-  if (!venue) {
-    return (
-      <PageShell title="مجتمع یافت نشد" maxWidth="5xl" padded={false}>
-        <div className="flex h-[50vh] items-center justify-center">
-          <p className="text-center text-gray-600">مجتمع یافت نشد.</p>
-        </div>
-      </PageShell>
-    );
-  }
-
-  const genderLabels: Record<string, string> = {
-    mixed: "مختلط",
-    male: "فقط آقایان",
-    female: "فقط بانوان",
-  };
+  const cat = categoryMeta(venue.category_slug, venue.category_name);
+  const bookHref = user?.role === "user" ? `/user/discover?venue=${venue.id}` : `/login?redirect=${encodeURIComponent(`/user/discover?venue=${venue.id}`)}`;
 
   return (
-    <PageShell title={venue.name} maxWidth="5xl" padded={false}>
-      <div className="space-y-8 px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="relative h-32 w-32 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 flex items-center justify-center">
-              {(() => categoryIcon(venue.category_slug))()}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className="text-2xl font-bold text-gray-900">{venue.name}</h1>
-                <Badge variant="info" size="md">
-                  {categoryLabels[venue.category_slug] || venue.category_name}
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {venue.district}، {venue.city}
-              </p>
-              {venue.address && (
-                <p className="mt-1 text-sm text-gray-500 truncate max-w-xs">
-                  {venue.address}
-                </p>
+    <PageShell access="public" maxWidth="xl" eyebrow={back}>
+      <Card p="lg" className="mb-6">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <span className={cn("flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl [&>svg]:h-8 [&>svg]:w-8", cat.tint)}>{cat.icon}</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold text-ink-900">{venue.name}</h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-500">
+              <span>{cat.label}</span>
+              <span className="flex items-center gap-1">
+                <MapPinIcon className="h-4 w-4" /> {[venue.district, venue.city === "Tehran" ? "تهران" : venue.city].filter(Boolean).join("، ")}
+              </span>
+              {venue.avg_rating != null && (
+                <span className="flex items-center gap-1">
+                  <StarIconSolid className="h-4 w-4 text-amber-400" /> {formatNumber(venue.avg_rating)} ({formatNumber(venue.rating_count)} نظر)
+                </span>
               )}
-            </div>
+            </p>
           </div>
+          <Button asChild size="lg">
+            <Link href={bookHref}>رزرو با بودجه سازمان</Link>
+          </Button>
         </div>
-
-        {/* Description & Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {venue.description && (
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
-                <h2 className="mb-3 text-lg font-semibold text-gray-900">درباره مجتمع</h2>
-                <p className="text-gray-600 leading-relaxed">{venue.description}</p>
-              </div>
-            )}
-
-            {/* Gender Policy */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6">
-              <h2 className="mb-3 text-lg font-semibold text-gray-900">سیاست جنسیتی</h2>
-              <div className="flex items-center gap-2">
-                <Badge variant="info" size="md">
-                  {genderLabels[venue.gender_policy] || venue.gender_policy}
-                </Badge>
-                {venue.gender_slots && venue.gender_slots.length > 0 && (
-                  <span className="text-sm text-gray-600">(سانس‌های زمان‌بندی شده دارد)</span>
-                )}
-              </div>
-            </div>
-
-            {/* Offers */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">آفرها و خدمات</h2>
-              {offersLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : offers?.length ? (
-                <div className="space-y-3">
-                  {offers.map((o) => (
-                    <div
-                      key={o.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 hover:border-emerald-300 transition-colors"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-gray-900">{o.name}</h3>
-                            {o.gender_restriction === "male" && (
-                              <Badge variant="info" size="sm">آقایان</Badge>
-                            )}
-                            {o.gender_restriction === "female" && (
-                              <Badge variant="warning" size="sm">بانوان</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            {o.duration_minutes} دقیقه · {o.gender_restriction === "male" ? "فقط آقایان" : o.gender_restriction === "female" ? "فقط بانوان" : "مختلط"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4 shrink-0">
-                          <p className="font-bold text-emerald-700 text-lg">{formatTomans(o.price)} تومان</p>
-                          <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-                            رزرو
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">
-                  هنوز آفر فعالی برای این مجتمع وجود ندارد.
-                </div>
-              )}
-            </div>
-
-            {/* Ratings */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">نظرات کاربران</h2>
-              {ratingsLoading ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-6 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ) : ratings?.length ? (
-                <div className="space-y-3">
-                  {ratings.map((r) => (
-                    <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-amber-600 text-sm">{"★".repeat(r.score)}</span>
-                        <span className="text-xs text-gray-600">{r.user_name || r.user_phone}</span>
-                      </div>
-                      {r.comment && (
-                        <p className="text-sm text-gray-700 mt-1">{r.comment}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">
-                  هنوز نظری ثبت نشده.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <div className="rounded-xl border border-gray-200 bg-white p-6 sticky top-24">
-              <h3 className="mb-4 font-semibold text-gray-900">اطلاعات تماس</h3>
-              <div className="space-y-3">
-                {venue.phone && (
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin className="h-4 w-4 text-emerald-600" />
-                    <span>{venue.phone}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-gray-600">
-                  <MapPin className="h-4 w-4 text-emerald-600" />
-                  <span>{venue.district}، {venue.city}</span>
-                </div>
-                {venue.address && (
-                  <div className="flex items-start gap-2 text-gray-600">
-                    <MapPin className="h-4 w-4 text-emerald-600 mt-1" />
-                    <span>{venue.address}</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-500">
-                  سیاست جنسیت: <span className="font-medium">{genderLabels[venue.gender_policy] || venue.gender_policy}</span>
-                </p>
-              </div>
-            </div>
-          </div>
+        {venue.description && <p className="mt-6 border-t border-line pt-6 text-sm leading-7 text-ink-700">{venue.description}</p>}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {venue.gender_policy !== "mixed" && <Badge variant="info">ویژه {GENDER_LABELS[venue.gender_policy]}</Badge>}
+          {venue.address && <Badge>{venue.address}</Badge>}
         </div>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader title="خدمات" />
+          {!offers?.length ? (
+            <p className="py-6 text-center text-sm text-ink-500">خدمتی برای نمایش وجود ندارد.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {offers.map((o) => (
+                <li key={o.id} className="flex items-center justify-between gap-4 py-3.5">
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink-900">{o.name}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500">
+                      <ClockIcon className="h-3.5 w-3.5" /> {formatNumber(o.duration_minutes)} دقیقه
+                      {o.gender_restriction !== "mixed" && ` · ویژه ${GENDER_LABELS[o.gender_restriction]}`}
+                    </p>
+                  </div>
+                  <p className="tabular shrink-0 font-semibold text-ink-900">{formatTomans(o.price)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader title="نظرات همکاران" />
+          {!user ? (
+            <p className="py-6 text-center text-sm text-ink-500">برای دیدن نظرات همکاران وارد شوید.</p>
+          ) : !ratings?.length ? (
+            <p className="py-6 text-center text-sm text-ink-500">هنوز نظری ثبت نشده است.</p>
+          ) : (
+            <ul className="space-y-3">
+              {ratings.slice(0, 6).map((r) => (
+                <li key={r.id} className="rounded-xl bg-canvas p-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-ink-700">{r.user_name || "کاربر باجیمو"}</span>
+                    <span className="flex">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <StarIconSolid key={i} className={cn("h-3.5 w-3.5", i < r.score ? "text-amber-400" : "text-gray-200")} />
+                      ))}
+                    </span>
+                  </div>
+                  {r.comment && <p className="mt-1.5 text-sm text-ink-700">{r.comment}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
+
     </PageShell>
   );
 }

@@ -5,10 +5,9 @@ User model + budget fields (user simplification).
 - annual_budget / remaining_budget / fiscal_year_start are kept on User
   for the user role (a per-company contract can override later).
 """
-from django.db import models
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import BaseUserManager, PermissionsMixin
-from django.conf import settings
+from django.db import models
 from django.utils import timezone
 
 

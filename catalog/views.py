@@ -1,17 +1,22 @@
 """Catalog views."""
-from rest_framework import viewsets, status
+from django.db import transaction
+from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Venue, Offer, Category, TimeSlot, VenueRating
-from .serializers import (
-    VenueSerializer, OfferSerializer, CategorySerializer,
-    VenueOnboardingSerializer, OfferCreateSerializer, VenueRatingSerializer,
-)
-from core.permissions import IsVenueStaff, IsAdmin
-from core.sms import send_sms
 from accounts.models import User
+from core.sms import send_sms
+
+from .models import Category, Offer, TimeSlot, Venue, VenueRating
+from .serializers import (
+    CategorySerializer,
+    OfferCreateSerializer,
+    OfferSerializer,
+    VenueOnboardingSerializer,
+    VenueRatingSerializer,
+    VenueSerializer,
+)
 
 
 class VenueViewSet(viewsets.ReadOnlyModelViewSet):
@@ -39,6 +44,7 @@ class VenueViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(category__slug=category)
         return qs
 
+
     @action(detail=True, methods=["get"], url_path="offers")
     def offers(self, request, pk=None):
         venue = self.get_object()
@@ -49,40 +55,49 @@ class VenueViewSet(viewsets.ReadOnlyModelViewSet):
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
+    permission_classes = [AllowAny]  # needed by the public venue sign-up form
     lookup_field = "slug"
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register_venue_public(request):
-    """Public venue registration: creates venue + venue_staff user."""
+    """
+    Public venue sign-up: creates a *pending* venue plus its venue_staff manager.
+    Body: venue fields + manager_phone (login mobile) + owner_name.
+    Legacy clients that send `phone`/`password` are still accepted.
+    """
+    from companies.views import PHONE_RE, normalize_phone
+
+    manager_phone = normalize_phone(request.data.get("manager_phone") or request.data.get("phone"))
+    if not PHONE_RE.match(manager_phone):
+        return Response({"detail": "موبایل مدیر مجموعه باید ۱۱ رقم و با ۰۹ شروع شود."}, status=400)
+    if User.objects.filter(phone_number=manager_phone).exists():
+        return Response({"detail": "این شماره موبایل قبلاً ثبت شده است."}, status=400)
+
     ser = VenueOnboardingSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     category = ser.validated_data.pop("category_slug")
-    venue = Venue.objects.create(category=category, status="pending", **ser.validated_data)
 
-    phone = request.data.get("phone")
-    name = request.data.get("name", "")
-    password = request.data.get("password")
-    if not phone or not password:
-        return Response({"detail": "phone and password required"}, status=400)
+    with transaction.atomic():
+        venue = Venue.objects.create(category=category, status=Venue.Status.PENDING, **ser.validated_data)
+        user = User.objects.create_user(
+            phone_number=manager_phone,
+            name=ser.validated_data.get("owner_name") or "",
+            role=User.Role.VENUE_STAFF,
+            venue=venue,
+            is_active=True,
+            is_verified=True,
+        )
+        password = request.data.get("password")
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()  # manager signs in with OTP
+        user.save()
 
-    if User.objects.filter(phone_number=phone).exists():
-        return Response({"detail": "phone already registered"}, status=400)
-    user = User.objects.create_user(
-        phone_number=phone,
-        name=name,
-        role="venue_staff",
-        venue=venue,
-        is_active=True,
-        is_verified=True,
-    )
-    user.set_password(password)
-    user.save()
-
-    admins = User.objects.filter(role="admin")
-    for admin in admins:
-        send_sms(admin.phone_number, f"باجیمو: مجتمع جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
+    for admin in User.objects.filter(role=User.Role.ADMIN):
+        send_sms(admin.phone_number, f"باجیمو: مجموعه جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
 
     return Response(VenueSerializer(venue).data, status=status.HTTP_201_CREATED)
 
@@ -99,8 +114,6 @@ def register_venue(request):
     user.role = "venue_staff"
     user.venue = venue
     user.save(update_fields=["role", "venue"])
-    # notify admin
-    from accounts.models import User
     admins = User.objects.filter(role="admin")
     for admin in admins:
         send_sms(admin.phone_number, f"باجیمو: باشگاه جدید «{venue.name}» ثبت نام کرد. بررسی کنید.")
@@ -175,6 +188,21 @@ def venue_profile_update(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+def admin_venues(request):
+    """Admin: all venues in any status (the public list only shows active ones)."""
+    if request.user.role != "admin":
+        return Response({"detail": "admin only"}, status=403)
+    venues = (
+        Venue.objects.all()
+        .select_related("category")
+        .prefetch_related("offers", "gender_slots", "ratings")
+        .order_by("-created_at")
+    )
+    return Response(VenueSerializer(venues, many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def pending_venues(request):
     """Admin: list pending venues."""
     if request.user.role != "admin":
@@ -232,10 +260,16 @@ def offer_timeslots(request, offer_id):
         return Response({"detail": "offer not found"}, status=404)
 
     if request.method == "GET":
+        from django.db.models import Q
+        from django.utils import timezone
+
         date_from = request.query_params.get("date")
         qs = TimeSlot.objects.filter(offer=offer, is_active=True)
         if date_from:
             qs = qs.filter(date__gte=date_from)
+        if request.query_params.get("upcoming"):
+            now = timezone.localtime()
+            qs = qs.exclude(Q(date__lt=now.date()) | Q(date=now.date(), end_time__lte=now.time()))
         return Response([{
             "id": s.id, "date": s.date, "start_time": s.start_time, "end_time": s.end_time,
             "capacity": s.capacity, "booked_count": s.booked_count,
@@ -389,7 +423,6 @@ def approve_company(request, company_id):
     if request.user.role != "admin":
         return Response({"detail": "admin only"}, status=403)
     from .models import Company
-    from accounts.models import User
     try:
         company = Company.objects.get(pk=company_id)
     except Company.DoesNotExist:
@@ -414,7 +447,6 @@ def reject_company(request, company_id):
     if request.user.role != "admin":
         return Response({"detail": "admin only"}, status=403)
     from .models import Company
-    from accounts.models import User
     try:
         company = Company.objects.get(pk=company_id)
     except Company.DoesNotExist:

@@ -1,7 +1,8 @@
 """Catalog serializers."""
-from rest_framework import serializers
 from django.db.models import Avg
-from .models import Category, Venue, Offer, VenueGenderSlot, VenueRating
+from rest_framework import serializers
+
+from .models import Category, Offer, Venue, VenueGenderSlot, VenueRating
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -38,7 +39,7 @@ class VenueRatingSerializer(serializers.ModelSerializer):
 
 class VenueSerializer(serializers.ModelSerializer):
     offers = OfferSerializer(many=True, read_only=True)
-    category_name = serializers.CharField(source="category.name_en", read_only=True)
+    category_name = serializers.SerializerMethodField()
     category_slug = serializers.CharField(source="category.slug", read_only=True)
     gender_slots = VenueGenderSlotSerializer(many=True, read_only=True)
     gender_for_now = serializers.SerializerMethodField()
@@ -50,9 +51,13 @@ class VenueSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "category", "category_name", "category_slug", "address", "lat", "lng",
                   "district", "city", "gender_policy", "gender_for_now", "gender_slots",
                   "description", "phone", "owner_name",
-                  "offers", "status", "is_verified", "created_at",
+                  "offers", "status", "is_verified", "created_at", "source",
                   "avg_rating", "rating_count")
         read_only_fields = ("status", "is_verified", "created_at")
+
+
+    def get_category_name(self, obj):
+        return obj.category.name_fa or obj.category.name_en
 
     def get_gender_for_now(self, obj):
         return obj.gender_for_now()
@@ -77,7 +82,7 @@ class VenueOnboardingSerializer(serializers.ModelSerializer):
         try:
             return Category.objects.get(slug=value, is_active=True)
         except Category.DoesNotExist:
-            raise serializers.ValidationError(f"Category '{value}' not found")
+            raise serializers.ValidationError(f"دسته‌بندی «{value}» پیدا نشد.") from None
 
 
 class OfferCreateSerializer(serializers.ModelSerializer):

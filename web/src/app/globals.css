@@ -1,54 +1,150 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+/* Vazirmatn is self-hosted from the npm package (no external CDN at runtime). */
+@import "vazirmatn/Vazirmatn-Variable-font-face.css";
 
-/* Persian font: Vazirmatn (self-hosted via CDN, swapped for safety) */
-@font-face {
-  font-family: "Vazirmatn";
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn-webfont@latest/dist/Vazirmatn.woff2") format("woff2");
-}
+/*
+ * Design tokens
+ * - brand: teal-green used for primary actions and highlights
+ * - surface/ink: neutral layers for panels and text
+ * Use the generated utilities (bg-brand-600, text-ink-500, bg-surface, ...)
+ * instead of hard-coding colors in components.
+ */
+@theme {
+  --font-sans: "Vazirmatn", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --color-brand-50: #ecfdf7;
+  --color-brand-100: #d1faec;
+  --color-brand-200: #a7f3da;
+  --color-brand-300: #6ee7c2;
+  --color-brand-400: #34d3a5;
+  --color-brand-500: #10b98b;
+  --color-brand-600: #059673;
+  --color-brand-700: #04785e;
+  --color-brand-800: #065f4c;
+  --color-brand-900: #064e40;
+  --color-brand-950: #022c25;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: "Vazirmatn", -apple-system, BlinkMacSystemFont, "Segoe UI", "IRANSans", "Vazir", Arial, sans-serif;
-  --font-mono: "Vazirmatn", ui-monospace, "SFMono-Regular", "Menlo", monospace;
-  --color-emerald: #059669;
-}
+  --color-surface: #ffffff;
+  --color-canvas: #f6f7f9;
+  --color-line: #e6e8ec;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-ink-900: #111827;
+  --color-ink-700: #374151;
+  --color-ink-500: #6b7280;
+  --color-ink-400: #9ca3af;
+
+  --radius-card: 1rem;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 12px 32px -8px rgb(16 24 40 / 0.18);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-slide-up: slide-up 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-in: slide-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
+/* Base rules live in the base layer so Tailwind utilities can override them. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  /* Anything clickable shows the hand cursor (Tailwind v4 no longer does this for buttons). */
+  a[href],
+  button,
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="submit"],
+  input[type="button"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* Numbers, phones and codes read left-to-right even inside RTL layouts. */
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  input[inputmode="numeric"] {
+    direction: ltr;
+    text-align: right;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
 }
 
-/* Persian typography: consistent font on form controls */
-input,
-textarea,
-select {
-  font-family: var(--font-sans);
-}
-/* Numeric/code inputs stay LTR */
-input[type="number"],
-input[type="tel"],
-input[type="text"][inputmode="numeric"] {
-  text-align: left;
-  direction: ltr;
+/* Public-site container: wide (1400px) so large monitors aren't left half empty. */
+@utility site-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1400px;
+  padding-inline: 1rem;
+  @media (min-width: 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (min-width: 64rem) {
+    padding-inline: 2.5rem;
+  }
 }
 
+/* Tabular figures keep money columns aligned. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thin, unobtrusive scrollbars for panels and tables. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+::selection {
+  background: var(--color-brand-100);
+  color: var(--color-brand-900);
+}

@@ -10,12 +10,14 @@ export type UserRole =
 export interface User {
   id: number;
   phone_number: string;
-  name: string;
+  email?: string | null;
+  name: string | null;
   role: UserRole;
   gender?: "male" | "female" | null;
   is_verified: boolean;
   remaining_budget: number;
   annual_budget: number;
+  wallet_balance?: number;
   sheba?: string | null;
   company?: number | null;
   company_name?: string;
@@ -55,6 +57,7 @@ export interface Offer {
 }
 
 export interface Venue {
+  source?: "manual" | "neshan";
   id: number;
   name: string;
   category: number;
@@ -142,8 +145,11 @@ export interface Company {
 }
 
 export interface CompanyDashboard {
-  employee_count: number;
+  company_name: string;
+  company_status: string;
+  user_count: number;
   total_annual_budget: number;
+  total_remaining: number;
   total_used: number;
   total_bookings: number;
 }
@@ -223,7 +229,14 @@ export interface VenueBreakdown {
   total_spent: number;
 }
 
+export interface DailyTrend {
+  reserved_at__date: string;
+  bookings: number;
+  total_spent: number;
+}
+
 export interface CompanyAnalytics {
+  daily_trend: DailyTrend[];
   total_bookings: number;
   total_spend: number;
   total_commission: number;
@@ -234,4 +247,20 @@ export interface CompanyAnalytics {
 export interface AdminUserDetail {
   user: User;
   bookings: Booking[];
+}
+
+export interface PendingCompany {
+  id: number;
+  name: string;
+  domain?: string | null;
+  default_annual_budget: number;
+  admin_name?: string | null;
+  admin_phone?: string | null;
+  created_at: string;
+}
+
+export interface CheckInResult {
+  ok: boolean;
+  detail: string;
+  status?: string;
 }

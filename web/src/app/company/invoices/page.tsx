@@ -1,183 +1,123 @@
 "use client";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { PageShell } from "@/components/PageShell";
-import { Button, Card, LoadingState, EmptyState, ErrorState } from "@/components/ui";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useApi } from "@/lib/useApi";
-import { formatTomans, formatDate } from "@/lib/format";
-import { Invoice, Booking } from "@/lib/types";
+import { PageShell } from "@/components/PageShell";
+import { Avatar, Card, DashboardSkeleton, EmptyRow, ErrorState, StatCard, StatusBadge, Table, Tabs, TBody, Td, Th, THead, Tr } from "@/components/ui";
+import { BanknotesIcon, ReceiptIcon, TicketIcon } from "@/components/icons";
+import { COMPANY_ROLES } from "@/lib/roles";
+import { formatDate, formatDateTime, formatNumber, formatTomans, formatTomansShort } from "@/lib/format";
+import type { Booking, Invoice } from "@/lib/types";
 
 export default function InvoicesPage() {
   const { user } = useAuth();
-  const {
-    data: invoices,
-    loading: invoicesLoading,
-    error: invoicesError,
-  } = useApi<Invoice[]>(user ? "/billing/invoices/" : null);
-  const { data: bookings, loading: bookingsLoading } = useApi<Booking[]>(
-    user ? "/billing/company-bookings/" : null
-  );
-
+  const inv = useApi<Invoice[]>(user ? "/billing/invoices/" : null);
+  const bk = useApi<Booking[]>(user ? "/billing/company-bookings/" : null);
   const [tab, setTab] = useState<"invoices" | "bookings">("invoices");
 
-  if (!user) return null;
-
-  const invList = invoices || [];
-  const bookingList = bookings || [];
-
-  const totalBilled = invList.reduce((s, i) => s + (i.total_toman || 0), 0);
-  const totalBookingsCount = bookingList.length;
-  const totalSpent = bookingList.reduce(
-    (s, b) => s + (b.status !== "cancelled" ? b.price : 0),
-    0
-  );
-
-  const loading = invoicesLoading || bookingsLoading;
+  const invoices = inv.data || [];
+  const bookings = bk.data || [];
+  const totalBilled = invoices.reduce((s, i) => s + (i.total_toman || 0), 0);
+  const totalSpent = bookings.reduce((s, b) => s + (b.status !== "cancelled" ? b.price : 0), 0);
 
   return (
-    <PageShell title="فاکتورها و رزروها">
-      {loading ? (
-        <LoadingState message="در حال بارگذاری..." />
-      ) : invoicesError ? (
-        <ErrorState onRetry={() => window.location.reload()} />
+    <PageShell roles={COMPANY_ROLES} title="فاکتورها و رزروها" subtitle="صورتحساب‌های دوره‌ای و ریز رزروهای کارکنان.">
+      {inv.loading || bk.loading ? (
+        <DashboardSkeleton stats={3} />
+      ) : inv.error ? (
+        <Card>
+          <ErrorState
+            onRetry={() => {
+              inv.refetch();
+              bk.refetch();
+            }}
+          />
+        </Card>
       ) : (
-        <div className="space-y-8">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">کل صورتحساب</p>
-              <p className="mt-1 text-xl font-bold text-emerald-700">
-                {formatTomans(totalBilled)}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">تعداد رزروها</p>
-              <p className="mt-1 text-xl font-bold text-gray-900">
-                {totalBookingsCount}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">کل هزینه</p>
-              <p className="mt-1 text-xl font-bold text-amber-600">
-                {formatTomans(totalSpent)}
-              </p>
-            </Card>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <StatCard label="جمع صورتحساب‌ها" value={formatTomansShort(totalBilled)} icon={<ReceiptIcon />} />
+            <StatCard label="تعداد رزروها" value={formatNumber(bookings.length)} icon={<TicketIcon />} tone="sky" />
+            <StatCard className="col-span-2 lg:col-span-1" label="هزینه رزروها" value={formatTomansShort(totalSpent)} icon={<BanknotesIcon />} tone="amber" />
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant={tab === "invoices" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setTab("invoices")}
-            >
-              فاکتورها ({invList.length})
-            </Button>
-            <Button
-              variant={tab === "bookings" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setTab("bookings")}
-            >
-              رزروها ({bookingList.length})
-            </Button>
-          </div>
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={[
+              { key: "invoices", label: "فاکتورها", count: invoices.length },
+              { key: "bookings", label: "رزروهای کارکنان", count: bookings.length },
+            ]}
+          />
 
-          {tab === "invoices" ? (
-            invList.length === 0 ? (
-              <EmptyState
-                title="فاکتوری وجود ندارد"
-                description="صورتحساب دوره‌ای بعدی نمایش داده می‌شود."
-              />
+          <Card p="none" className="overflow-hidden">
+            {tab === "invoices" ? (
+              <Table>
+                <THead>
+                  <Th>شماره</Th>
+                  <Th>دوره</Th>
+                  <Th>مبلغ</Th>
+                  <Th>وضعیت</Th>
+                </THead>
+                <TBody>
+                  {invoices.length === 0 ? (
+                    <EmptyRow colSpan={4}>هنوز فاکتوری صادر نشده است. فاکتورها در پایان هر دوره صادر می‌شوند.</EmptyRow>
+                  ) : (
+                    invoices.map((i) => (
+                      <Tr key={i.id}>
+                        <Td className="tabular text-ink-500">#{formatNumber(i.id)}</Td>
+                        <Td className="text-ink-900">
+                          {formatDate(i.period_start)} تا {formatDate(i.period_end)}
+                        </Td>
+                        <Td className="tabular font-semibold text-ink-900">{formatTomans(i.total_toman)}</Td>
+                        <Td>
+                          <StatusBadge status={i.status} />
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </TBody>
+              </Table>
             ) : (
-              <Card className="overflow-hidden p-0">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-200 bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        دوره
-                      </th>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        مبلغ
-                      </th>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        وضعیت
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {invList.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-gray-900">
-                          {formatDate(inv.period_start)} —{" "}
-                          {formatDate(inv.period_end)}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-gray-900">
-                          {formatTomans(inv.total_toman)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <StatusBadge status={inv.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            )
-          ) : bookingList.length === 0 ? (
-            <EmptyState
-              title="رزروی وجود ندارد"
-              description="رزروهای کارکنان هرگاه ثبت شوند اینجا نشان داده می‌شوند."
-            />
-          ) : (
-            <Card className="overflow-hidden p-0">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-200 bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      کارمند
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      باشگاه
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      آفر
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      مبلغ
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      وضعیت
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {bookingList.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">
-                          {b.employee_name}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {b.employee_phone}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {b.venue_name}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {b.offer_name}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {formatTomans(b.price)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={b.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
+              <Table>
+                <THead>
+                  <Th>کارمند</Th>
+                  <Th>مجموعه و خدمت</Th>
+                  <Th>زمان</Th>
+                  <Th>مبلغ</Th>
+                  <Th>وضعیت</Th>
+                </THead>
+                <TBody>
+                  {bookings.length === 0 ? (
+                    <EmptyRow colSpan={5}>هنوز رزروی ثبت نشده است.</EmptyRow>
+                  ) : (
+                    bookings.map((b) => (
+                      <Tr key={b.id}>
+                        <Td>
+                          <div className="flex items-center gap-3">
+                            <Avatar name={b.employee_name || b.employee_phone} size="sm" />
+                            <div>
+                              <p className="font-medium text-ink-900">{b.employee_name || "—"}</p>
+                              <p className="text-xs text-ink-500">{b.employee_phone}</p>
+                            </div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <p className="text-ink-900">{b.venue_name}</p>
+                          <p className="text-xs text-ink-500">{b.offer_name}</p>
+                        </Td>
+                        <Td className="whitespace-nowrap text-xs">{formatDateTime(b.reserved_at)}</Td>
+                        <Td className="tabular font-medium text-ink-900">{formatTomans(b.price)}</Td>
+                        <Td>
+                          <StatusBadge status={b.status} />
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </TBody>
+              </Table>
+            )}
+          </Card>
         </div>
       )}
     </PageShell>

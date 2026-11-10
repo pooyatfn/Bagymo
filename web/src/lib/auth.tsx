@@ -1,91 +1,81 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import api from "@/lib/api";
+import type { User } from "@/lib/types";
 
-interface User {
-  id: number;
-  phone_number: string;
-  name: string;
-  role: string;
-  remaining_budget: number;
-  annual_budget: number;
-  sheba?: string;
-}
+const STORAGE_KEYS = ["access", "refresh", "user", "role"] as const;
 
 interface AuthCtx {
   user: User | null;
   loading: boolean;
+  /** Request an OTP code for a phone number. */
   login: (phone: string) => Promise<void>;
-  verify: (phone: string, code: string) => Promise<{ created: boolean }>;
-  loginWithEmail: (email: string, password: string) => Promise<void>;
+  verify: (phone: string, code: string) => Promise<{ created: boolean; user: User }>;
+  loginWithEmail: (email: string, password: string) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthCtx>(null!);
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext<AuthCtx | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function useAuth(): AuthCtx {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
+  return ctx;
+}
+
+function storeSession(access: string, refresh: string, user: User) {
+  localStorage.setItem("access", access);
+  localStorage.setItem("refresh", refresh);
+  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("role", user.role);
+}
+
+function clearSession() {
+  STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
+}
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("access");
-      if (!token) { setUser(null); return; }
-      const res = await api.get("/auth/profile/");
-      localStorage.setItem("user", JSON.stringify(res.data));
-      setUser(res.data);
-    } catch {
+    if (!localStorage.getItem("access")) {
       setUser(null);
-    }
-  }, []);
-
-  const fetchUser = useCallback(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access") : null;
-    if (!token) {
-      Promise.resolve()
-        .then(() => {
-          setUser(null);
-          setLoading(false);
-        });
       return;
     }
-    api
-      .get("/auth/profile/")
-      .then((res) => {
-        localStorage.setItem("user", JSON.stringify(res.data));
-        setUser(res.data);
-        setLoading(false);
-      })
-      .catch(() => {
-        const raw = localStorage.getItem("user");
-        if (raw) {
-          const cached: User = JSON.parse(raw);
-          if (["user", "company_admin", "company_hr", "venue_staff", "admin"].includes(cached.role)) {
-            setUser(cached);
-          } else {
-            setUser(null);
-            localStorage.removeItem("user");
-            localStorage.removeItem("access");
-            localStorage.removeItem("refresh");
-            localStorage.removeItem("role");
-          }
-        } else {
-          setUser(null);
-          // redirect to login for protected routes (but not on landing or login pages)
-          if (typeof window !== "undefined") {
-            const publicPaths = ["/", "/login"];
-            if (!publicPaths.includes(window.location.pathname)) {
-              window.location.href = "/login";
-            }
-          }
-        }
-        setLoading(false);
-      });
+    try {
+      const res = await api.get<User>("/auth/profile/");
+      localStorage.setItem("user", JSON.stringify(res.data));
+      setUser(res.data);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 401) {
+        // token rejected → signed out
+        clearSession();
+        setUser(null);
+      } else {
+        // network/server hiccup → keep the cached profile so the panel still renders
+        setUser(readCachedUser());
+      }
+    }
   }, []);
 
-  useEffect(() => { fetchUser(); }, [fetchUser]);
+  useEffect(() => {
+    // defer to a microtask so state updates happen outside the effect body
+    Promise.resolve()
+      .then(refreshUser)
+      .finally(() => setLoading(false));
+  }, [refreshUser]);
 
   const login = async (phone: string) => {
     await api.post("/auth/otp-request/", { phone_number: phone });
@@ -93,30 +83,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verify = async (phone: string, code: string) => {
     const res = await api.post("/auth/otp-verify/", { phone_number: phone, code });
-    const { access, refresh, user: u } = res.data;
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("user", JSON.stringify(u));
-    localStorage.setItem("role", u.role);
+    const { access, refresh, user: u, created } = res.data as { access: string; refresh: string; user: User; created: boolean };
+    storeSession(access, refresh, u);
     setUser(u);
-    return { created: res.data.created };
+    return { created, user: u };
   };
 
   const loginWithEmail = async (email: string, password: string) => {
     const res = await api.post("/auth/login-email/", { email, password });
-    const { access, refresh, user: u } = res.data;
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("user", JSON.stringify(u));
-    localStorage.setItem("role", u.role);
+    const { access, refresh, user: u } = res.data as { access: string; refresh: string; user: User };
+    storeSession(access, refresh, u);
     setUser(u);
+    return u;
   };
 
   const logout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
-    localStorage.removeItem("role");
+    clearSession();
     setUser(null);
   };
 

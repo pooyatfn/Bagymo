@@ -1,323 +1,269 @@
 "use client";
-import { useEffect, useState } from "react";
+/**
+ * Two modes:
+ *  - signed out      → public registration of a new venue (creates the venue + manager account)
+ *  - venue_staff     → edit the venue profile
+ */
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useApi } from "@/lib/useApi";
+import { AuthLayout } from "@/components/AuthLayout";
 import { PageShell } from "@/components/PageShell";
-import { Button, Card, Input, Select, Textarea } from "@/components/ui";
 import LocationPicker from "@/components/LocationPicker";
-import { MapPinIcon } from "@/components/icons";
+import { Button, Card, CardHeader, Input, LoadingState, Select, Textarea, useToast } from "@/components/ui";
+import { CheckCircleIcon, MapPinIcon } from "@/components/icons";
+import { CATEGORY_OPTIONS } from "@/lib/categories";
 import { apiErrorDetail } from "@/lib/errors";
-import type { VenueProfile } from "@/lib/types";
+import { persianNumbers, toEnglishDigits } from "@/lib/format";
+import type { Category, VenueProfile } from "@/lib/types";
 
-const CATEGORIES = [
-  { slug: "gym", label: "مجتمع بدنسازی" },
-  { slug: "pool", label: "استخر" },
-  { slug: "cinema", label: "سینما" },
-  { slug: "yoga", label: "یوگا" },
-  { slug: "sport", label: "مجتمع ورزشی" },
-];
-
-const DEFAULT_FORM = {
+const EMPTY = {
   name: "",
   category_slug: "gym",
+  owner_name: "",
+  manager_phone: "",
+  phone: "",
+  city: "تهران",
+  district: "",
   address: "",
   lat: "",
   lng: "",
-  district: "",
-  city: "Tehran",
-  phone: "",
   gender_policy: "mixed",
   description: "",
-  password: "",
-  password_confirm: "",
 };
+type Form = typeof EMPTY;
 
-type FormState = typeof DEFAULT_FORM;
+export default function VenueRegisterPage() {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingState fullScreen />;
+  if (!user) return <PublicRegistration />;
+  return <VenueProfileEditor />;
+}
 
-export default function RegisterVenuePage() {
-  const { user, loading: authLoading } = useAuth();
+function useCategories() {
+  const { data } = useApi<Category[]>("/catalog/categories/");
+  return data?.length ? data.map((c) => ({ slug: c.slug, label: c.name_fa || c.name_en })) : CATEGORY_OPTIONS;
+}
+
+function PublicRegistration() {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
-  const [existingVenue, setExistingVenue] = useState<VenueProfile | null>(null);
-  const [fetching, setFetching] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState<Form>(EMPTY);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [locating, setLocating] = useState(false);
 
-  const userId = user?.id;
-
-  // Allow public access for new venue registration, but require auth for updates
-  useEffect(() => {
-    if (!authLoading && !user && existingVenue) {
-      router.replace("/login?redirect=/venue/register");
-    }
-  }, [user, authLoading, router, existingVenue]);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  useEffect(() => {
-    if (!userId) {
-      setFetching(false);
-      return;
-    }
-    api
-      .get("/catalog/venue-profile/")
-      .then((r) => {
-        const v = r.data as VenueProfile;
-        setExistingVenue(v);
-        setForm({
-          name: v.name,
-          category_slug: v.category_slug || String(v.category),
-          address: v.address || "",
-          lat: v.lat ? String(v.lat) : "",
-          lng: v.lng ? String(v.lng) : "",
-          district: v.district || "",
-          city: v.city || "Tehran",
-          phone: v.phone || "",
-          gender_policy: v.gender_policy || "mixed",
-          description: v.description || "",
-          password: "",
-          password_confirm: "",
-        });
-        setFetching(false);
-      })
-      .catch(() => {
-        setExistingVenue(null);
-        setFetching(false);
-      });
-  }, [userId]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
     setError("");
+    const mobile = toEnglishDigits(form.manager_phone).replace(/\D/g, "");
+    if (!/^09\d{9}$/.test(mobile)) return setError("موبایل مدیر مجموعه باید ۱۱ رقم و با ۰۹ شروع شود.");
+    setBusy(true);
     try {
-      if (existingVenue) {
-        await api.patch("/catalog/venue-profile/update/", {
-          ...form,
-          lat: form.lat ? parseFloat(form.lat) : null,
-          lng: form.lng ? parseFloat(form.lng) : null,
-        });
-        alert("پروفایل مجتمع به‌روزرسانی شد.");
-      } else {
-        // Public registration endpoint (creates venue + user account)
-        await api.post("/catalog/register-venue-public/", {
-          ...form,
-          lat: form.lat ? parseFloat(form.lat) : null,
-          lng: form.lng ? parseFloat(form.lng) : null,
-          phone: form.phone,
-          name: form.name,
-          password: form.password,
-        });
-        alert("مجتمع شما ثبت شد و در انتظار تأیید ادمین است.");
-        router.push("/login");
-      }
+      await api.post("/catalog/register-venue-public/", payload(form, { manager_phone: mobile }));
+      router.push("/login?registered=venue");
     } catch (err) {
-      setError(apiErrorDetail(err, "خطا در پردازش درخواست"));
+      setError(apiErrorDetail(err, "ثبت مجموعه انجام نشد."));
+      setBusy(false);
     }
-    setSubmitting(false);
   };
 
-  const useMyLocation = () => {
-    if (!navigator.geolocation) {
-      alert("مرورگر شما موقعیت مکانی پشتیبانی نمی‌کند.");
-      return;
+  return (
+    <AuthLayout wide>
+      <h1 className="text-2xl font-bold text-ink-900">ثبت مجموعه ورزشی و تفریحی</h1>
+      <p className="mt-2 text-sm leading-6 text-ink-500">
+        اطلاعات مجموعه را وارد کنید. پس از تأیید، با موبایل مدیر وارد پنل شوید، خدمات و سانس‌ها را تعریف کنید و مهمان سازمانی بپذیرید.
+      </p>
+      <form onSubmit={submit} className="mt-8 space-y-6">
+        <VenueFields form={form} setForm={setForm} isNew />
+        {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" loading={busy}>
+          ارسال برای بررسی
+        </Button>
+        <p className="text-center text-sm text-ink-500">
+          قبلاً ثبت کرده‌اید؟{" "}
+          <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
+            ورود
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
+  );
+}
+
+function VenueProfileEditor() {
+  const { data, loading, error } = useApi<VenueProfile & { status?: string; owner_name?: string | null }>("/catalog/venue-profile/");
+  return (
+    <PageShell roles={["venue_staff"]} title="پروفایل مجموعه" subtitle="این اطلاعات در صفحه مجموعه برای کارکنان سازمان‌ها نمایش داده می‌شود." maxWidth="lg">
+      {loading ? (
+        <LoadingState />
+      ) : error || !data ? (
+        <Card>
+          <p className="py-8 text-center text-sm text-ink-500">اطلاعات مجموعه دریافت نشد.</p>
+        </Card>
+      ) : (
+        <ProfileForm
+          pending={data.status === "pending"}
+          initial={{
+            ...EMPTY,
+            name: data.name,
+            category_slug: data.category_slug || "gym",
+            owner_name: data.owner_name || "",
+            phone: data.phone || "",
+            city: data.city === "Tehran" ? "تهران" : data.city || "",
+            district: data.district || "",
+            address: data.address || "",
+            lat: data.lat != null ? String(data.lat) : "",
+            lng: data.lng != null ? String(data.lng) : "",
+            gender_policy: data.gender_policy || "mixed",
+            description: data.description || "",
+          }}
+        />
+      )}
+    </PageShell>
+  );
+}
+
+function ProfileForm({ initial, pending }: { initial: Form; pending: boolean }) {
+  const toast = useToast();
+  const [form, setForm] = useState<Form>(initial);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.patch("/catalog/venue-profile/update/", payload(form));
+      toast.success("پروفایل مجموعه ذخیره شد");
+    } catch (err) {
+      toast.error("ذخیره انجام نشد", apiErrorDetail(err));
     }
+    setBusy(false);
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-6">
+      {pending && <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">مجموعه شما در انتظار تأیید کارشناسان باجیمو است.</div>}
+      <Card p="lg">
+        <VenueFields form={form} setForm={setForm} />
+      </Card>
+      <div className="flex justify-end">
+        <Button type="submit" size="lg" loading={busy} icon={<CheckCircleIcon />}>
+          ذخیره تغییرات
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function payload(form: Form, extra: Record<string, unknown> = {}) {
+  const { manager_phone: _mp, ...rest } = form;
+  return {
+    ...rest,
+    phone: toEnglishDigits(form.phone),
+    lat: form.lat ? parseFloat(form.lat) : null,
+    lng: form.lng ? parseFloat(form.lng) : null,
+    ...extra,
+  };
+}
+
+function VenueFields({ form, setForm, isNew }: { form: Form; setForm: (f: Form) => void; isNew?: boolean }) {
+  const categories = useCategories();
+  const [locating, setLocating] = useState(false);
+  const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm({ ...form, [k]: e.target.value });
+
+  const gps = () => {
+    if (!navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm({
-          ...form,
-          lat: String(pos.coords.latitude),
-          lng: String(pos.coords.longitude),
-        });
+      (p) => {
+        setForm({ ...form, lat: String(p.coords.latitude), lng: String(p.coords.longitude) });
         setLocating(false);
       },
-      () => {
-        alert("دریافت موقعیت ناموفق بود.");
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
   return (
-    <PageShell
-      title={existingVenue ? "پروفایل مجتمع" : "ثبت مجتمع جدید"}
-      subtitle={
-        existingVenue
-          ? "اطلاعات مجتمع خود را به‌روز کنید."
-          : "اطلاعات مجتمع خود را وارد کنید تا در پلتفرم نمایش داده شود."
-      }
-    >
-      {fetching ? (
-        <p className="text-center text-gray-600 py-8 text-sm">
-          در حال بارگذاری اطلاعات مجتمع...
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="p-6 space-y-5">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Input
-                  label="نام مجتمع *"
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  placeholder="مثلاً: مجتمع آهنگ زندگی"
-                  required
-                />
-              </div>
-              <Select
-                label="دسته‌بندی *"
-                name="category_slug"
-                value={form.category_slug}
-                onChange={handleChange}
-                required
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.slug} value={c.slug}>
-                    {c.label}
-                  </option>
-                ))}
-              </Select>
-              <Input
-                label="تلفن"
-                name="phone"
-                placeholder="021-..."
-                value={form.phone}
-                onChange={handleChange}
-              />
-              <Input
-                label="محله"
-                name="district"
-                placeholder="مثلاً: ولیعصر"
-                value={form.district}
-                onChange={handleChange}
-              />
-<Input
-                label="شهر"
-                name="city"
-                value={form.city}
-                onChange={handleChange}
-              />
-              {!existingVenue && (
-                <>
-                  <Input
-                    label="رمز عبور *"
-                    name="password"
-                    type="password"
-                    placeholder="حداقل ۸ کاراکتر"
-                    value={form.password ?? ""}
-                    onChange={handleChange}
-                    required
-                  />
-                  <Input
-                    label="تکرار رمز عبور *"
-                    name="password_confirm"
-                    type="password"
-                    placeholder="تکرار رمز عبور"
-                    value={form.password_confirm ?? ""}
-                    onChange={handleChange}
-                    required
-                  />
-                </>
-              )}
-<div className="sm:col-span-2">
-              <Input
-                label="آدرس"
-                name="address"
-                placeholder="آدرس کامل مکان"
-                value={form.address}
-                onChange={handleChange}
-              />
-            </div>
+    <div className="space-y-8">
+      <section>
+        <CardHeader title="اطلاعات مجموعه" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Input label="نام مجموعه" placeholder="مثلاً: باشگاه آرمان" value={form.name} onChange={set("name")} required />
           </div>
+          <Select label="نوع مجموعه" value={form.category_slug} onChange={set("category_slug")} required>
+            {categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+          <Select label="پذیرش" value={form.gender_policy} onChange={set("gender_policy")}>
+            <option value="mixed">مختلط / سانس‌بندی</option>
+            <option value="male">فقط آقایان</option>
+            <option value="female">فقط بانوان</option>
+          </Select>
+          <div className="sm:col-span-2">
+            <Textarea label="معرفی کوتاه" placeholder="امکانات، تجهیزات، ساعات کاری…" value={form.description} onChange={set("description")} rows={3} />
+          </div>
+        </div>
+      </section>
 
-            <div className="rounded-lg border border-dashed border-gray-200 p-4">
-              <p className="mb-2 text-xs font-medium text-gray-600">
-                انتخاب موقعیت روی نقشه
-              </p>
-              <LocationPicker
-                onPick={(lat, lng) =>
-                  setForm({ ...form, lat: String(lat), lng: String(lng) })
-                }
-                initialCenter={
-                  form.lat && form.lng
-                    ? [parseFloat(form.lat), parseFloat(form.lng)]
-                    : [35.6892, 51.389]
-                }
-                buttonText="انتخاب موقعیت از نقشه"
-              />
-              <div className="mt-3 flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={useMyLocation}
-                  loading={locating}
-                  disabled={locating}
-                  className="inline-flex items-center gap-1"
-                >
-                  <MapPinIcon className="h-4 w-4" />
-                  {locating ? "در حال یافتن..." : "استفاده از GPS"}
-                </Button>
-              </div>
-            </div>
-
-            <Select
-              label="سیاست جنسیتی"
-              name="gender_policy"
-              value={form.gender_policy}
-              onChange={handleChange}
-            >
-              <option value="mixed">مختلط</option>
-              <option value="male">فقط آقایان</option>
-              <option value="female">فقط خانم‌ها</option>
-            </Select>
-            <Textarea
-              label="توضیحات"
-              name="description"
-              placeholder="توضیح کوتاه درباره مجتمع..."
-              value={form.description}
-              onChange={handleChange}
-              rows={3}
+      <section>
+        <CardHeader title="مدیر و تماس" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="نام مدیر" value={form.owner_name} onChange={set("owner_name")} required={isNew} />
+          {isNew && (
+            <Input
+              label="موبایل مدیر"
+              type="tel"
+              inputMode="numeric"
+              placeholder="09123456789"
+              value={form.manager_phone}
+              onChange={set("manager_phone")}
+              helper="ورود به پنل مجموعه با کد پیامکی به این شماره است."
+              required
             />
-          </Card>
+          )}
+          <Input label="تلفن مجموعه" type="tel" placeholder="021…" value={form.phone} onChange={set("phone")} />
+        </div>
+      </section>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex gap-3">
-            <Button
-              variant="primary"
-              type="submit"
-              loading={submitting}
-              disabled={submitting}
-              className="flex-1"
-            >
-              {submitting
-                ? "در حال ثبت..."
-                : existingVenue
-                ? "به‌روزرسانی مجتمع"
-                : "ثبت مجتمع"}
-            </Button>
-            {!existingVenue && (
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => router.back()}
-              >
-                صرف‌نظر
-              </Button>
-            )}
+      <section>
+        <CardHeader title="نشانی" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="شهر" value={form.city} onChange={set("city")} />
+          <Input label="محله / منطقه" placeholder="مثلاً: سعادت‌آباد" value={form.district} onChange={set("district")} />
+          <div className="sm:col-span-2">
+            <Input label="نشانی کامل" value={form.address} onChange={set("address")} />
           </div>
-        </form>
-      )}
-    </PageShell>
+          <div className="space-y-2 sm:col-span-2">
+            <LocationPicker
+              onPick={(lat, lng) => setForm({ ...form, lat: String(lat), lng: String(lng) })}
+              initialCenter={form.lat && form.lng ? [parseFloat(form.lat), parseFloat(form.lng)] : undefined}
+              buttonText={form.lat ? "تغییر موقعیت روی نقشه" : "انتخاب موقعیت روی نقشه"}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-ink-500">
+                {form.lat && form.lng ? (
+                  <span className="inline-flex items-center gap-1 text-brand-700">
+                    <CheckCircleIcon className="h-4 w-4" /> موقعیت ثبت شد ({persianNumbers(`${parseFloat(form.lat).toFixed(4)}، ${parseFloat(form.lng).toFixed(4)}`)})
+                  </span>
+                ) : (
+                  "ثبت موقعیت باعث نمایش مجموعه روی نقشه کارکنان می‌شود."
+                )}
+              </span>
+              <Button variant="ghost" size="sm" onClick={gps} loading={locating} icon={<MapPinIcon />}>
+                موقعیت فعلی من
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

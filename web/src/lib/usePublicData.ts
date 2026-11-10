@@ -29,6 +29,7 @@ export function usePublicCategories() {
   return useApi<CategoryLite[]>("/catalog/categories/");
 }
 
-export function usePublicVenues(limit = 9) {
-  return useApi<VenueLite[]>(`/catalog/venues/?limit=${limit}`);
+/** Active venues only (the API never returns pending or suspended ones to the public). */
+export function usePublicVenues() {
+  return useApi<VenueLite[]>("/catalog/venues/");
 }

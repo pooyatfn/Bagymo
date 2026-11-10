@@ -1,45 +1,23 @@
-"use client";
-import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { CategoriesSection } from "@/components/landing/CategoriesSection";
+import { AudienceSection } from "@/components/landing/AudienceSection";
+import { PanelsShowcase } from "@/components/landing/PanelsShowcase";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { VenuesShowcase } from "@/components/landing/VenuesShowcase";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
-import { FaqSection } from "@/components/landing/FaqSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (!loading && user && params.get("redirect") === "app") {
-      const paths: Record<string, string> = {
-        user: "/user/dashboard",
-        company_admin: "/company/dashboard",
-        company_hr: "/company/dashboard",
-        venue_staff: "/venue/dashboard",
-        admin: "/admin",
-      };
-      const dest = paths[user.role];
-      if (dest) router.replace(dest);
-    }
-  }, [user, loading, router]);
-
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen bg-surface text-ink-900">
       <LandingHeader />
       <main>
         <HeroSection />
+        <CategoriesSection />
+        <AudienceSection />
+        <PanelsShowcase />
         <FeaturesSection />
-        <HowItWorks />
         <VenuesShowcase />
-        <TestimonialsSection />
-        <FaqSection />
       </main>
       <LandingFooter />
     </div>

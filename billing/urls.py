@@ -1,6 +1,7 @@
 """Billing API urls."""
 from django.urls import path
-from .views import my_invoices, venue_settlements, company_bookings, company_analytics
+
+from .views import company_analytics, company_bookings, my_invoices, venue_settlements
 
 urlpatterns = [
     path("invoices/", my_invoices, name="invoices-list"),

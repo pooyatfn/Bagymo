@@ -1,708 +1,421 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useApi } from "@/lib/useApi";
 import { PageShell } from "@/components/PageShell";
 import {
+  Avatar,
   Button,
   Card,
-  LoadingState,
+  CardHeader,
+  DashboardSkeleton,
+  DetailRow,
+  EmptyRow,
   EmptyState,
+  fieldClass,
   Modal,
+  StatCard,
+  StatusBadge,
+  Table,
+  Tabs,
+  TBody,
+  Td,
+  Textarea,
+  Th,
+  THead,
+  Tr,
+  useToast,
 } from "@/components/ui";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { useApi } from "@/lib/useApi";
-import { formatTomans } from "@/lib/format";
-import { Venue, Booking, AdminCompany } from "@/lib/types";
+import { BanknotesIcon, BuildingIcon, CheckIcon, ClockIcon, SearchIcon, StoreIcon, XMarkIcon } from "@/components/icons";
+import { categoryMeta } from "@/lib/categories";
+import { cn } from "@/lib/cn";
 import { apiErrorDetail } from "@/lib/errors";
+import { formatDate, formatDateTime, formatNumber, formatTomans, formatTomansShort, GENDER_LABELS } from "@/lib/format";
+import type { AdminCompany, Booking, PendingCompany, Venue } from "@/lib/types";
+
+type Tab = "pending" | "venues" | "companies" | "bookings";
+type RejectTarget = { kind: "venue" | "company"; id: number; name: string };
+
+/** Platform margin ≈ 3% employee commission + 3% venue commission. */
+const PLATFORM_MARGIN = 0.06;
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const router = useRouter();
-  const isAdmin = !!user && user.role === "admin";
+  const toast = useToast();
+  const isAdmin = user?.role === "admin";
 
-  const pendingUrl = isAdmin ? "/catalog/pending-venues/" : null;
-  const venuesUrl = isAdmin ? "/catalog/venues/" : null;
-  const bookingsUrl = isAdmin ? "/billing/company-bookings/" : null;
-  const companiesUrl = isAdmin ? "/catalog/admin-companies/" : null;
-  const pendingCompaniesUrl = isAdmin ? "/catalog/pending-companies/" : null;
+  const pendingVenues = useApi<Venue[]>(isAdmin ? "/catalog/pending-venues/" : null);
+  const pendingCompanies = useApi<PendingCompany[]>(isAdmin ? "/catalog/pending-companies/" : null);
+  const venues = useApi<Venue[]>(isAdmin ? "/catalog/admin-venues/" : null);
+  const companies = useApi<AdminCompany[]>(isAdmin ? "/catalog/admin-companies/" : null);
+  const bookings = useApi<Booking[]>(isAdmin ? "/billing/company-bookings/" : null);
 
-  const { data: pendingVenues, loading: pvLoading, refetch: pvRefetch } = useApi<Venue[]>(pendingUrl);
-  const { data: venues, loading: vLoading, refetch: vRefetch } = useApi<Venue[]>(venuesUrl);
-  const { data: bookings, loading: bLoading, refetch: bRefetch } = useApi<Booking[]>(bookingsUrl);
-  const { data: companies, loading: cLoading, refetch: cRefetch } = useApi<AdminCompany[]>(companiesUrl);
-  const { data: pendingCompanies, loading: pcLoading, refetch: pcRefetch } = useApi<any[]>(pendingCompaniesUrl);
+  const [tab, setTab] = useState<Tab>("pending");
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [reject, setReject] = useState<RejectTarget | null>(null);
+  const [reason, setReason] = useState("");
+  const [venueDetail, setVenueDetail] = useState<Venue | null>(null);
+  const [companyDetail, setCompanyDetail] = useState<AdminCompany | null>(null);
 
   const refetchAll = () => {
-    pvRefetch();
-    vRefetch();
-    bRefetch();
-    cRefetch();
-    pcRefetch();
+    pendingVenues.refetch();
+    pendingCompanies.refetch();
+    venues.refetch();
+    companies.refetch();
   };
 
-  const loading = pvLoading || vLoading || bLoading || cLoading || pcLoading;
-
-  const [tab, setTab] = useState<"pending" | "venues" | "companies" | "bookings">("pending");
-  const [rejectReason, setRejectReason] = useState("");
-  const [rejectId, setRejectId] = useState<number | null>(null);
-  const [venueSearch, setVenueSearch] = useState("");
-  const [venueStatusFilter, setVenueStatusFilter] = useState("all");
-  const [venueCategoryFilter, setVenueCategoryFilter] = useState("all");
-  const [showCompanyDetails, setShowCompanyDetails] = useState<any | null>(null);
-  const [showVenueDetails, setShowVenueDetails] = useState<any | null>(null);
-
-  const handleApprove = async (id: number) => {
+  const approve = async (kind: "venue" | "company", id: number, name: string) => {
+    setBusy(`${kind}-${id}`);
     try {
-      await api.post(`/catalog/venues/${id}/approve/`);
+      await api.post(kind === "venue" ? `/catalog/venues/${id}/approve/` : `/catalog/companies/${id}/approve/`);
+      toast.success(`«${name}» تأیید شد`, "به مدیر آن پیامک اطلاع‌رسانی ارسال شد.");
       refetchAll();
     } catch (err) {
-      alert(apiErrorDetail(err, "خطا"));
+      toast.error("تأیید انجام نشد", apiErrorDetail(err));
     }
+    setBusy(null);
   };
 
-  const handleApproveCompany = async (id: number) => {
+  const confirmReject = async () => {
+    if (!reject) return;
+    setBusy(`${reject.kind}-${reject.id}`);
     try {
-      await api.post(`/catalog/companies/${id}/approve/`);
+      const url = reject.kind === "venue" ? `/catalog/venues/${reject.id}/reject/` : `/catalog/companies/${reject.id}/reject/`;
+      await api.post(url, { reason });
+      toast.info(`درخواست «${reject.name}» رد شد`);
+      setReject(null);
+      setReason("");
       refetchAll();
     } catch (err) {
-      alert(apiErrorDetail(err, "خطا"));
+      toast.error("رد درخواست انجام نشد", apiErrorDetail(err));
     }
+    setBusy(null);
   };
 
-  const handleReject = async () => {
-    if (!rejectId) return;
-    try {
-      await api.post(`/catalog/venues/${rejectId}/reject/`, {
-        reason: rejectReason,
-      });
-      setRejectId(null);
-      setRejectReason("");
-      refetchAll();
-    } catch (err) {
-      alert(apiErrorDetail(err, "خطا"));
-    }
-  };
+  const pv = pendingVenues.data || [];
+  const pc = pendingCompanies.data || [];
+  const vList = venues.data || [];
+  const cList = companies.data || [];
+  const bList = bookings.data || [];
+  const gmv = bList.reduce((s, b) => s + (b.status !== "cancelled" && b.status !== "expired" ? b.price : 0), 0);
+  const loading = pendingVenues.loading || pendingCompanies.loading || venues.loading || companies.loading;
 
-  if (!user) return null;
-  if (user.role !== "admin") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p className="text-red-500">دسترسی غیرمجاز</p>
-      </div>
-    );
-  }
-
-  const pendingList = pendingVenues || [];
-  const pendingCompanyList = pendingCompanies || [];
-  const venueList = venues || [];
-  const bookingList = bookings || [];
-  const companyList = companies || [];
-
-  const totalRevenue = bookingList.reduce(
-    (s, b) => s + (b.status !== "cancelled" ? b.price : 0),
-    0
-  );
-  const platformMargin = Math.round(totalRevenue * 0.06);
-
-  const categories = [
-    ...new Set(
-      venueList
-        .map((v) => v.category_name || String(v.category))
-        .filter(Boolean)
-    ),
-  ];
-
-  const filteredVenues = venueList.filter((v) => {
-    const matchesSearch =
-      !venueSearch ||
-      v.name?.includes(venueSearch) ||
-      v.district?.includes(venueSearch);
-    const matchesStatus =
-      venueStatusFilter === "all" || v.status === venueStatusFilter;
-    const matchesCategory =
-      venueCategoryFilter === "all" ||
-      (v.category_name || String(v.category)) === venueCategoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  const q = query.trim();
+  const fVenues = q ? vList.filter((v) => v.name.includes(q) || v.district?.includes(q)) : vList;
+  const fCompanies = q ? cList.filter((c) => c.name.includes(q) || c.domain?.includes(q)) : cList;
+  const fBookings = q ? bList.filter((b) => b.venue_name?.includes(q) || b.employee_name?.includes(q) || b.employee_phone?.includes(q)) : bList;
 
   return (
-    <PageShell title="پنل مدیریت">
+    <PageShell roles={["admin"]} title="پنل مدیریت پلتفرم" subtitle="بررسی درخواست‌ها و نظارت بر سازمان‌ها، مجموعه‌ها و رزروها.">
       {loading ? (
-        <LoadingState message="در حال بارگذاری..." />
+        <DashboardSkeleton />
       ) : (
         <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">در انتظار تایید</p>
-              <p className="mt-1 text-xl font-bold text-amber-600">
-                {pendingList.length}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">تعداد مکان‌ها</p>
-              <p className="mt-1 text-xl font-bold text-gray-900">
-                {venueList.length}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">تعداد رزروها</p>
-              <p className="mt-1 text-xl font-bold text-gray-900">
-                {bookingList.length}
-              </p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs text-gray-600">درآمد پلتفرم (۶٪)</p>
-              <p className="mt-1 text-xl font-bold text-emerald-700">
-                {formatTomans(platformMargin)}
-              </p>
-            </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label="در انتظار بررسی" value={formatNumber(pv.length + pc.length)} icon={<ClockIcon />} tone="amber" />
+            <StatCard label="سازمان‌ها" value={formatNumber(cList.length)} icon={<BuildingIcon />} tone="sky" />
+            <StatCard label="مجموعه‌ها" value={formatNumber(vList.length)} icon={<StoreIcon />} />
+            <StatCard
+              label="درآمد تخمینی پلتفرم"
+              value={formatTomansShort(gmv * PLATFORM_MARGIN)}
+              hint={`از ${formatTomansShort(gmv)} گردش`}
+              icon={<BanknotesIcon />}
+              tone="violet"
+            />
           </div>
 
-          {/* Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: "pending", label: `در انتظار تایید (${pendingList.length + pendingCompanyList.length})` },
-              { key: "venues", label: `مکان‌ها (${venueList.length})` },
-              { key: "companies", label: `شرکت‌ها (${companyList.length})` },
-              { key: "bookings", label: "رزروها" },
-            ].map((t) => (
-              <Button
-                key={t.key}
-                variant={tab === t.key ? "primary" : "secondary"}
-                size="sm"
-                onClick={() => setTab(t.key as typeof tab)}
-              >
-                {t.label}
-              </Button>
-            ))}
-          </div>
-
-          {/* Pending Tab */}
-          {tab === "pending" && (
-            <Card className="p-0">
-              {(pendingList.length === 0 && pendingCompanyList.length === 0) ? (
-                <EmptyState
-                  title="موردی در انتظار تایید نیست"
-                  description="همه درخواست‌ها بررسی شده‌اند."
-                />
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {pendingList.length > 0 && (
-                    <>
-                      <div className="px-5 py-3 bg-amber-50 border-b border-gray-100 font-semibold text-amber-700">
-                        مکان‌های در انتظار تایید ({pendingList.length})
-                      </div>
-                      <div className="divide-y divide-gray-100">
-                        {pendingList.map((v) => (
-                          <div
-                            key={v.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5"
-                          >
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{v.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {v.category_name} · {v.district} · {v.city}
-                              </p>
-                              {v.address && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  {v.address}
-                                </p>
-                              )}
-                              {v.phone && (
-                                <p className="text-xs text-gray-600">تلفن: {v.phone}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleApprove(v.id)}
-                              >
-                                تایید
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setRejectId(v.id)}
-                              >
-                                رد
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {pendingCompanyList.length > 0 && (
-                    <>
-                      <div className="px-5 py-3 bg-amber-50 border-b border-gray-100 font-semibold text-amber-700">
-                        شرکت‌های در انتظار تایید ({pendingCompanyList.length})
-                      </div>
-                      <div className="divide-y divide-gray-100">
-                        {pendingCompanyList.map((c) => (
-                          <div
-                            key={c.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5"
-                          >
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{c.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {c.domain || "بدون دامنه"}
-                              </p>
-                              <p className="text-xs text-gray-600 mt-1">
-                                مدیر: {c.admin_name || "تعیین نشده"} · {c.admin_phone || "بدون تلفن"}
-                              </p>
-                              <p className="text-xs text-gray-600">
-                                بودجه سالانه: {formatTomans(c.default_annual_budget)}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleApproveCompany(c.id)}
-                              >
-                                تایید
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setRejectId(c.id)}
-                              >
-                                رد
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </Card>
-          )}
-
-          {/* Venues Tab */}
-          {tab === "venues" && (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <Tabs
+              value={tab}
+              onChange={(t) => {
+                setTab(t);
+                setQuery("");
+              }}
+              items={[
+                { key: "pending", label: "درخواست‌ها", count: pv.length + pc.length },
+                { key: "companies", label: "سازمان‌ها", count: cList.length },
+                { key: "venues", label: "مجموعه‌ها", count: vList.length },
+                { key: "bookings", label: "رزروها", count: bList.length },
+              ]}
+            />
+            {tab !== "pending" && (
+              <div className="relative md:w-72">
+                <SearchIcon className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
                 <input
-                  type="text"
-                  value={venueSearch}
-                  onChange={(e) => setVenueSearch(e.target.value)}
-                  placeholder="جستجو بر اساس نام یا منطقه..."
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="جستجو…"
+                  className={cn(fieldClass(), "h-10 ps-9")}
+                  aria-label="جستجو"
                 />
-                <select
-                  value={venueStatusFilter}
-                  onChange={(e) => setVenueStatusFilter(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                >
-                  <option value="all">همه وضعیت‌ها</option>
-                  <option value="active">فعال</option>
-                  <option value="pending">در انتظار</option>
-                  <option value="suspended">غیرفعال</option>
-                </select>
-                <select
-                  value={venueCategoryFilter}
-                  onChange={(e) => setVenueCategoryFilter(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                >
-                  <option value="all">همه دسته‌ها</option>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
               </div>
-              <Card className="overflow-hidden p-0">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-200 bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        نام
-                      </th>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        دسته
-                      </th>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        منطقه
-                      </th>
-                      <th className="px-4 py-3 font-medium text-gray-600">
-                        وضعیت
-                      </th>
-                    </tr>
-                  </thead>
-<tbody className="divide-y divide-gray-100">
-                      {filteredVenues.map((v) => (
-                        <tr
-                          key={v.id}
-                          className="hover:bg-gray-50 cursor-pointer"
-                          onClick={() => setShowVenueDetails(v)}
-                        >
-                          <td className="px-4 py-3 font-medium text-emerald-700 hover:underline">
-                            {v.name}
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge status={v.category_name || String(v.category)} />
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">
-                            {v.district} · {v.city}
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge status={v.status} />
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredVenues.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-4 py-8 text-center text-gray-600"
-                        >
-                          مکانی یافت نشد.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+            )}
+          </div>
+
+          {tab === "pending" &&
+            (pv.length + pc.length === 0 ? (
+              <Card>
+                <EmptyState icon={<CheckIcon />} title="همه درخواست‌ها بررسی شده‌اند" description="درخواست جدیدی برای تأیید وجود ندارد." />
               </Card>
-            </div>
-          )}
-
-          {/* Companies Tab */}
-          {tab === "companies" && (
-            <Card className="overflow-hidden p-0">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-200 bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      نام شرکت
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      کارمندان
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      بودجه سالانه
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      تعداد رزرو
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      کل هزینه
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      وضعیت
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      عملیات
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {companyList.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setShowCompanyDetails(c)}>
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-emerald-700 hover:underline">{c.name}</p>
-                        {c.domain && (
-                          <p className="text-xs text-gray-600">{c.domain}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">
-                        {c.employee_count}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">
-                        {formatTomans(c.default_annual_budget)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">
-                        {c.total_bookings}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {formatTomans(c.total_spent)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            c.is_active
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-600"
-                          }`}
-                        >
-                          {c.is_active ? "فعال" : "غیرفعال"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {!c.is_active && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); handleApproveCompany(c.id); }}
-                          >
-                            فعال‌سازی
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {companyList.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-8 text-center text-gray-600"
-                      >
-                        شرکتی یافت نشد.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </Card>
-          )}
-
-          {/* Bookings Tab */}
-          {tab === "bookings" && (
-            <Card className="overflow-hidden p-0">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-200 bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      کارمند
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      مکان
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      آفر
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      مبلغ
-                    </th>
-                    <th className="px-4 py-3 font-medium text-gray-600">
-                      وضعیت
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {bookingList.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/admin/user/${b.employee_id}`}
-                          className="font-medium text-emerald-700 hover:underline"
-                        >
-                          {b.employee_name || b.employee_phone}
-                        </Link>
-                        <p className="text-xs text-gray-600">
-                          {b.employee_phone}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-emerald-700">
-                          {b.venue_name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {b.offer_name}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {formatTomans(b.price)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={b.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
-
-          {/* Reject Modal */}
-          {rejectId && (
-            <Modal
-              open={!!rejectId}
-              onClose={() => setRejectId(null)}
-              title="رد مکان"
-            >
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="دلیل رد (اختیاری)"
-                className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                rows={3}
-              />
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setRejectId(null)}
-                >
-                  انصراف
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleReject}
-                >
-                  رد
-                </Button>
-              </div>
-            </Modal>
-          )}
-
-          {/* Company Details Modal */}
-          {showCompanyDetails && (
-            <Modal
-              open={!!showCompanyDetails}
-              onClose={() => setShowCompanyDetails(null)}
-              title={`جزئیات شرکت: ${showCompanyDetails.name}`}
-            >
-              <div className="space-y-4 text-sm">
-                <div>
-                  <p className="text-xs text-gray-600">نام شرکت</p>
-                  <p className="font-medium text-gray-900">{showCompanyDetails.name}</p>
-                </div>
-                {showCompanyDetails.domain && (
-                  <div>
-                    <p className="text-xs text-gray-600">دامنه</p>
-                    <p className="font-medium text-gray-900">{showCompanyDetails.domain}</p>
-                  </div>
+            ) : (
+              <div className="grid gap-6 xl:grid-cols-2">
+                {pc.length > 0 && (
+                  <Card p="none">
+                    <div className="p-5 pb-2">
+                      <CardHeader className="mb-0" title="سازمان‌های جدید" description="پس از تأیید، مدیر سازمان می‌تواند وارد شود." />
+                    </div>
+                    <ul className="divide-y divide-line">
+                      {pc.map((c) => (
+                        <PendingRow
+                          key={c.id}
+                          icon={<BuildingIcon />}
+                          title={c.name}
+                          lines={[
+                            `مدیر: ${c.admin_name || "—"} · ${c.admin_phone || "—"}`,
+                            `بودجه پیش‌فرض: ${formatTomans(c.default_annual_budget)} · ${formatDate(c.created_at)}`,
+                          ]}
+                          busy={busy === `company-${c.id}`}
+                          onApprove={() => approve("company", c.id, c.name)}
+                          onReject={() => setReject({ kind: "company", id: c.id, name: c.name })}
+                        />
+                      ))}
+                    </ul>
+                  </Card>
                 )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-600">کارمندان</p>
-                    <p className="font-medium text-gray-900">{showCompanyDetails.employee_count}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">تعداد رزرو</p>
-                    <p className="font-medium text-gray-900">{showCompanyDetails.total_bookings}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-600">بودجه سالانه</p>
-                    <p className="font-medium text-gray-900">{formatTomans(showCompanyDetails.default_annual_budget)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">کل هزینه</p>
-                    <p className="font-medium text-gray-900">{formatTomans(showCompanyDetails.total_spent)}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">وضعیت</p>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      showCompanyDetails.is_active
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {showCompanyDetails.is_active ? "فعال" : "غیرفعال"}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">تاریخ ثبت</p>
-                  <p className="font-medium text-gray-900">
-                    {new Date(showCompanyDetails.created_at).toLocaleDateString("fa-IR")}
-                  </p>
-                </div>
+                {pv.length > 0 && (
+                  <Card p="none">
+                    <div className="p-5 pb-2">
+                      <CardHeader className="mb-0" title="مجموعه‌های جدید" description="پس از تأیید، در فهرست کارکنان نمایش داده می‌شوند." />
+                    </div>
+                    <ul className="divide-y divide-line">
+                      {pv.map((v) => (
+                        <PendingRow
+                          key={v.id}
+                          icon={categoryMeta(v.category_slug, v.category_name).icon}
+                          title={v.source === "neshan" ? `${v.name} · از نقشه نشان` : v.name}
+                          lines={[
+                            `${categoryMeta(v.category_slug, v.category_name).label} · ${[v.district, v.city].filter(Boolean).join("، ")}`,
+                            [v.owner_name, v.phone].filter(Boolean).join(" · ") || v.address || "",
+                          ]}
+                          busy={busy === `venue-${v.id}`}
+                          onApprove={() => approve("venue", v.id, v.name)}
+                          onReject={() => setReject({ kind: "venue", id: v.id, name: v.name })}
+                        />
+                      ))}
+                    </ul>
+                  </Card>
+                )}
               </div>
-              <div className="mt-6 flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setShowCompanyDetails(null)}
-                >
-                  بستن
-                </Button>
-              </div>
-            </Modal>
+            ))}
+
+          {tab === "companies" && (
+            <Card p="none" className="overflow-hidden">
+              <Table>
+                <THead>
+                  <Th>سازمان</Th>
+                  <Th>کارکنان</Th>
+                  <Th>بودجه پیش‌فرض</Th>
+                  <Th>رزرو</Th>
+                  <Th>گردش</Th>
+                  <Th>وضعیت</Th>
+                </THead>
+                <TBody>
+                  {fCompanies.length === 0 ? (
+                    <EmptyRow colSpan={6}>سازمانی پیدا نشد.</EmptyRow>
+                  ) : (
+                    fCompanies.map((c) => (
+                      <Tr key={c.id} onClick={() => setCompanyDetail(c)}>
+                        <Td>
+                          <p className="font-medium text-ink-900">{c.name}</p>
+                          {c.domain && <p className="text-xs text-ink-500" dir="ltr" style={{ textAlign: "right" }}>{c.domain}</p>}
+                        </Td>
+                        <Td className="tabular">{formatNumber(c.employee_count)}</Td>
+                        <Td className="tabular">{formatTomans(c.default_annual_budget)}</Td>
+                        <Td className="tabular">{formatNumber(c.total_bookings)}</Td>
+                        <Td className="tabular font-medium text-ink-900">{formatTomans(c.total_spent)}</Td>
+                        <Td>
+                          <StatusBadge status={(c as AdminCompany & { status?: string }).status || (c.is_active ? "active" : "inactive")} />
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </TBody>
+              </Table>
+            </Card>
           )}
 
-          {/* Venue Details Modal */}
-          {showVenueDetails && (
-            <Modal
-              open={!!showVenueDetails}
-              onClose={() => setShowVenueDetails(null)}
-              title={`جزئیات مجتمع: ${showVenueDetails.name}`}
-            >
-              <div className="space-y-4 text-sm">
-                <div>
-                  <p className="text-xs text-gray-600">نام مجتمع</p>
-                  <p className="font-medium text-gray-900">{showVenueDetails.name}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-600">دسته‌بندی</p>
-                    <p className="font-medium text-gray-900">{showVenueDetails.category_name || String(showVenueDetails.category)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">شهر</p>
-                    <p className="font-medium text-gray-900">{showVenueDetails.city}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-600">منطقه</p>
-                    <p className="font-medium text-gray-900">{showVenueDetails.district}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">تلفن</p>
-                    <p className="font-medium text-gray-900">{showVenueDetails.phone || "ثبت نشده"}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">آدرس</p>
-                  <p className="font-medium text-gray-900">{showVenueDetails.address || "ثبت نشده"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">سیاست جنسیتی</p>
-                  <p className="font-medium text-gray-900">{showVenueDetails.gender_policy}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">وضعیت</p>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      showVenueDetails.status === "active"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : showVenueDetails.status === "pending"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {showVenueDetails.status === "active" ? "فعال" :
-                     showVenueDetails.status === "pending" ? "در انتظار" : "غیرفعال"}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-600">تاریخ ثبت</p>
-                  <p className="font-medium text-gray-900">
-                    {new Date(showVenueDetails.created_at).toLocaleDateString("fa-IR")}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setShowVenueDetails(null)}
-                >
-                  بستن
-                </Button>
-              </div>
-            </Modal>
+          {tab === "venues" && (
+            <Card p="none" className="overflow-hidden">
+              <Table>
+                <THead>
+                  <Th>مجموعه</Th>
+                  <Th>نوع</Th>
+                  <Th>محله</Th>
+                  <Th>امتیاز</Th>
+                  <Th>وضعیت</Th>
+                </THead>
+                <TBody>
+                  {fVenues.length === 0 ? (
+                    <EmptyRow colSpan={5}>مجموعه‌ای پیدا نشد.</EmptyRow>
+                  ) : (
+                    fVenues.map((v) => {
+                      const cat = categoryMeta(v.category_slug, v.category_name);
+                      return (
+                        <Tr key={v.id} onClick={() => setVenueDetail(v)}>
+                          <Td>
+                            <div className="flex items-center gap-3">
+                              <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl [&>svg]:h-[18px] [&>svg]:w-[18px]", cat.tint)}>{cat.icon}</span>
+                              <span className="font-medium text-ink-900">{v.name}</span>
+                            </div>
+                          </Td>
+                          <Td>{cat.label}</Td>
+                          <Td>{[v.district, v.city === "Tehran" ? "تهران" : v.city].filter(Boolean).join("، ")}</Td>
+                          <Td className="tabular">{v.avg_rating != null ? `${formatNumber(v.avg_rating)} ★` : "—"}</Td>
+                          <Td>
+                            <StatusBadge status={v.status} />
+                          </Td>
+                        </Tr>
+                      );
+                    })
+                  )}
+                </TBody>
+              </Table>
+            </Card>
+          )}
+
+          {tab === "bookings" && (
+            <Card p="none" className="overflow-hidden">
+              <Table>
+                <THead>
+                  <Th>کارمند</Th>
+                  <Th>مجموعه و خدمت</Th>
+                  <Th>زمان</Th>
+                  <Th>مبلغ</Th>
+                  <Th>وضعیت</Th>
+                </THead>
+                <TBody>
+                  {fBookings.length === 0 ? (
+                    <EmptyRow colSpan={5}>رزروی پیدا نشد.</EmptyRow>
+                  ) : (
+                    fBookings.map((b) => (
+                      <Tr key={b.id}>
+                        <Td>
+                          <Link href={`/admin/user/${b.employee_id}`} className="flex items-center gap-3 hover:text-brand-700">
+                            <Avatar name={b.employee_name || b.employee_phone} size="sm" />
+                            <span>
+                              <span className="block font-medium text-ink-900">{b.employee_name || "—"}</span>
+                              <span className="block text-xs text-ink-500">{b.employee_phone}</span>
+                            </span>
+                          </Link>
+                        </Td>
+                        <Td>
+                          <p className="text-ink-900">{b.venue_name}</p>
+                          <p className="text-xs text-ink-500">{b.offer_name}</p>
+                        </Td>
+                        <Td className="whitespace-nowrap text-xs">{formatDateTime(b.reserved_at)}</Td>
+                        <Td className="tabular font-medium text-ink-900">{formatTomans(b.price)}</Td>
+                        <Td>
+                          <StatusBadge status={b.status} />
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </TBody>
+              </Table>
+            </Card>
           )}
         </div>
       )}
+
+      <Modal
+        open={!!reject}
+        onClose={() => setReject(null)}
+        size="sm"
+        title={reject?.kind === "venue" ? "رد درخواست مجموعه" : "رد درخواست سازمان"}
+        description={reject?.name}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setReject(null)}>
+              انصراف
+            </Button>
+            <Button variant="destructive" onClick={confirmReject} loading={!!reject && busy === `${reject.kind}-${reject.id}`}>
+              رد درخواست
+            </Button>
+          </>
+        }
+      >
+        <Textarea label="دلیل (برای متقاضی پیامک می‌شود)" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="اختیاری" />
+      </Modal>
+
+      <Modal open={!!venueDetail} onClose={() => setVenueDetail(null)} title={venueDetail?.name} description={venueDetail && categoryMeta(venueDetail.category_slug, venueDetail.category_name).label}>
+        {venueDetail && (
+          <dl className="divide-y divide-line">
+            <DetailRow label="وضعیت"><StatusBadge status={venueDetail.status} /></DetailRow>
+            <DetailRow label="مدیر">{venueDetail.owner_name || "—"}</DetailRow>
+            <DetailRow label="تلفن"><span dir="ltr">{venueDetail.phone || "—"}</span></DetailRow>
+            <DetailRow label="نشانی">{venueDetail.address || "—"}</DetailRow>
+            <DetailRow label="پذیرش">{GENDER_LABELS[venueDetail.gender_policy] ?? venueDetail.gender_policy}</DetailRow>
+            <DetailRow label="خدمات">{formatNumber(venueDetail.offers?.length ?? 0)}</DetailRow>
+            <DetailRow label="تاریخ ثبت">{formatDate(venueDetail.created_at)}</DetailRow>
+          </dl>
+        )}
+      </Modal>
+
+      <Modal open={!!companyDetail} onClose={() => setCompanyDetail(null)} title={companyDetail?.name} description={companyDetail?.domain || undefined}>
+        {companyDetail && (
+          <dl className="divide-y divide-line">
+            <DetailRow label="وضعیت"><StatusBadge status={(companyDetail as AdminCompany & { status?: string }).status || (companyDetail.is_active ? "active" : "inactive")} /></DetailRow>
+            <DetailRow label="کارکنان">{formatNumber(companyDetail.employee_count)}</DetailRow>
+            <DetailRow label="بودجه پیش‌فرض">{formatTomans(companyDetail.default_annual_budget)}</DetailRow>
+            <DetailRow label="تعداد رزرو">{formatNumber(companyDetail.total_bookings)}</DetailRow>
+            <DetailRow label="گردش مالی">{formatTomans(companyDetail.total_spent)}</DetailRow>
+            <DetailRow label="تاریخ ثبت">{formatDate(companyDetail.created_at)}</DetailRow>
+          </dl>
+        )}
+      </Modal>
     </PageShell>
   );
 }
+
+function PendingRow({
+  icon,
+  title,
+  lines,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  lines: string[];
+  busy: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 [&>svg]:h-5 [&>svg]:w-5">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-ink-900">{title}</p>
+        {lines.filter(Boolean).map((l, i) => (
+          <p key={i} className="mt-0.5 truncate text-xs text-ink-500">
+            {l}
+          </p>
+        ))}
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <Button size="sm" onClick={onApprove} loading={busy} icon={<CheckIcon />}>
+          تأیید
+        </Button>
+        <Button size="sm" variant="soft-danger" onClick={onReject} disabled={busy} icon={<XMarkIcon />}>
+          رد
+        </Button>
+      </div>
+    </li>
+  );
+}
+

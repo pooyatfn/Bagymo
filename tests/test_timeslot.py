@@ -1,13 +1,13 @@
 """
 Tests for timeslot booking: capacity tracking, restore on cancel.
 """
-import pytest
 from datetime import timedelta
+
+import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
-from catalog.models import TimeSlot
-from bookings.models import Booking
-from bookings.views import BookingViewSet
+
 from billing.services import reserve_booking
+from bookings.views import BookingViewSet
 
 
 class TestTimeslotBooking:
@@ -26,8 +26,8 @@ class TestTimeslotBooking:
 
     def test_timeslot_capacity_enforced(self, employee, offer, timeslot, company):
         """Cannot book a full timeslot."""
-        from catalog.models import VenueCompanyAccess
         from bookings.serializers import BookingCreateSerializer
+        from catalog.models import VenueCompanyAccess
         VenueCompanyAccess.objects.create(venue=offer.venue, company=company)
         timeslot.capacity = 1
         timeslot.booked_count = 1
@@ -60,6 +60,7 @@ class TestTimeslotBooking:
     def test_expire_restores_timeslot_capacity(self, employee, offer, timeslot):
         """Expiring a booking with timeslot restores booked_count."""
         from django.utils import timezone
+
         from bookings.views import _expire_past_bookings
         booking = reserve_booking(employee, offer, timeslot=timeslot)
         timeslot.refresh_from_db()

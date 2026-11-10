@@ -4,16 +4,17 @@ Creates: 1 company, 3 employees, 10 offers across 3 gyms, 1 venue staff,
 and runs a demo booking to verify the commission math.
 Run:  python manage.py seed_bagymo
 """
-from datetime import date, timedelta, time
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.models import User
-from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot, TimeSlot, VenueRating
 from billing.services import reserve_booking
+from catalog.models import Category, Company, Offer, TimeSlot, Venue, VenueCompanyAccess, VenueGenderSlot, VenueRating
 
+DEMO_COMPANY_NAME = "شرکت نمونه باجیمو"
 
 SAMPLE_GYMS = [
     {"name": "آهنگ زندگی", "address": "ولیعصر، بالاتر از میرداماد", "lat": 35.7664, "lng": 51.4121, "phone": "021-22221111", "district": "میرداماد", "city": "Tehran", "gender_policy": "mixed", "category": "gym", "description": "باشگاه بدنسازی و فیتنس با تجهیزات مدرن"},
@@ -115,16 +116,24 @@ class Command(BaseCommand):
             cat, _ = Category.objects.get_or_create(slug=slug, defaults={"name_en": name_en, "name_fa": name_fa})
             categories[slug] = cat
 
-        company, _ = Company.objects.get_or_create(
-            name="Bagymo Demo Co.",
-            defaults={"domain": "demo.local", "default_annual_budget": 8_000_000,
-                      "fiscal_year_start": date.today(), "is_active": True,
-                      "status": Company.Status.ACTIVE},
-        )
+        # demo company (matched by domain so re-running never creates a second one)
+        company = Company.objects.filter(domain="demo.local").first()
+        if company is None:
+            company = Company.objects.create(
+                name=DEMO_COMPANY_NAME, domain="demo.local", default_annual_budget=8_000_000,
+                fiscal_year_start=date.today(), is_active=True, status=Company.Status.ACTIVE,
+            )
+        elif company.name == "Bagymo Demo Co.":
+            company.name = DEMO_COMPANY_NAME
+            company.save(update_fields=["name"])
 
         # users
-        specs = [("Ali", "09120000001", "a1111111", "male"), ("Sara", "09120000002", "s2222222", "female"), ("Reza", "09120000003", "r3333333", "male")]
-        for n, phone, pw, gender in specs:
+        specs = [
+            ("علی رضایی", "Ali", "09120000001", "a1111111", "male"),
+            ("سارا محمدی", "Sara", "09120000002", "s2222222", "female"),
+            ("رضا کریمی", "Reza", "09120000003", "r3333333", "male"),
+        ]
+        for n, old_name, phone, pw, gender in specs:
             u = User.objects.filter(phone_number=phone).first()
             if not u:
                 u = User.objects.create_user(phone_number=phone, name=n, role=User.Role.USER,
@@ -134,29 +143,42 @@ class Command(BaseCommand):
                 u.set_password(pw)
                 u.save()
             else:
-                u.company = company; u.is_active=True; u.gender = gender
+                u.company = company
+                u.is_active = True
+                u.gender = gender
+                if u.name == old_name:  # rename the old English demo names
+                    u.name = n
                 u.save()
 
         # company_admin
         ca = User.objects.filter(phone_number="09120000010").first()
         if not ca:
-            ca = User.objects.create_user(phone_number="09120000010", name="HR Admin", role=User.Role.COMPANY_ADMIN,
+            ca = User.objects.create_user(phone_number="09120000010", name="مریم احمدی", role=User.Role.COMPANY_ADMIN,
                                           company=company, is_verified=True, is_active=True)
             ca.set_password("Admin12345")
             ca.save()
         else:
-            ca.company = company; ca.role = User.Role.COMPANY_ADMIN; ca.is_active = True
+            ca.company = company
+            ca.role = User.Role.COMPANY_ADMIN
+            ca.is_active = True
+            if ca.name == "HR Admin":
+                ca.name = "مریم احمدی"
             ca.save()
 
         # platform admin (is_superuser for django admin panel)
         pa = User.objects.filter(phone_number="09120000000").first()
         if not pa:
-            pa = User.objects.create_superuser(phone_number="09120000000", name="Platform Admin",
+            pa = User.objects.create_superuser(phone_number="09120000000", name="مدیر باجیمو",
                                                role=User.Role.ADMIN, is_verified=True, is_active=True)
             pa.set_password("Admin12345")
             pa.save()
         else:
-            pa.role = User.Role.ADMIN; pa.is_active = True; pa.is_staff = True; pa.is_superuser = True
+            pa.role = User.Role.ADMIN
+            if pa.name == "Platform Admin":
+                pa.name = "مدیر باجیمو"
+            pa.is_active = True
+            pa.is_staff = True
+            pa.is_superuser = True
             pa.save()
 
         # venues + offers
@@ -220,20 +242,21 @@ class Command(BaseCommand):
             f"venues={Venue.objects.count()}, offers={Offer.objects.count()}"
         ))
 
-        # demo booking verifying commission math
+        # one demo booking (only on the first run, so re-seeding doesn't keep spending Ali's budget)
         ali = User.objects.get(phone_number="09120000001")
         offer = Offer.objects.first()
-        bal_before = ali.remaining_budget
-        with transaction.atomic():
-            booking = reserve_booking(ali, offer)
-        bal_after = User.objects.get(pk=ali.pk).remaining_budget
-        self.stdout.write(self.style.WARNING(
-            f"Demo booking: {offer.name} @ {offer.price:,} -> budget "
-            f"{bal_before:,} - {offer.price:,} = {bal_after:,} "
-            f"| emp_commission={booking.employee_commission:,} "
-            f"venue_commission={booking.venue_commission:,} "
-            f"gym_gets={booking.venue_net_payout:,}"
-        ))
+        if offer and not ali.bookings.exists():
+            bal_before = ali.remaining_budget
+            with transaction.atomic():
+                booking = reserve_booking(ali, offer)
+            bal_after = User.objects.get(pk=ali.pk).remaining_budget
+            self.stdout.write(self.style.WARNING(
+                f"Demo booking: {offer.name} @ {offer.price:,} -> budget "
+                f"{bal_before:,} - {offer.price:,} = {bal_after:,} "
+                f"| emp_commission={booking.employee_commission:,} "
+                f"venue_commission={booking.venue_commission:,} "
+                f"gym_gets={booking.venue_net_payout:,}"
+            ))
 
         # Sample ratings
         ali = User.objects.get(phone_number="09120000001")

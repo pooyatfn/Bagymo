@@ -1,67 +1,104 @@
-import { ReactNode, useEffect } from "react";
+"use client";
+import { ReactNode, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "@/lib/cn";
+import { XMarkIcon } from "@/components/icons";
 
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;
+  description?: ReactNode;
+  footer?: ReactNode;
+  size?: "sm" | "md" | "lg";
   closeOnEsc?: boolean;
   closeOnBackdrop?: boolean;
   className?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
-export const Modal = ({
+const widths = { sm: "sm:max-w-sm", md: "sm:max-w-lg", lg: "sm:max-w-2xl" };
+
+export function Modal({
   open,
   onClose,
   title,
+  description,
+  footer,
+  size = "md",
   closeOnEsc = true,
   closeOnBackdrop = true,
-  className = "",
+  className,
   children,
-}: ModalProps) => {
+}: ModalProps) {
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) return;
-    const onEsc = () => {
-      if (closeOnEsc) onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && closeOnEsc) onClose();
     };
-    document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
   }, [open, closeOnEsc, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  const content = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm"
-      onClick={closeOnBackdrop ? onClose : undefined}
-    >
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className={`w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl ${className}`.trim()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {title && (
-          <h3 className="mb-4 text-lg font-bold text-gray-900">{title}</h3>
+        className="absolute inset-0 animate-fade-in bg-ink-900/40 backdrop-blur-[2px]"
+        onClick={closeOnBackdrop ? onClose : undefined}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        className={cn(
+          "relative flex max-h-[92vh] w-full animate-slide-up flex-col rounded-t-3xl bg-surface shadow-[var(--shadow-pop)] sm:rounded-2xl",
+          widths[size],
+          className,
         )}
-        {children}
+      >
+        {(title || description) && (
+          <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
+            <div className="min-w-0">
+              {title && <h2 id={titleId} className="text-base font-semibold text-ink-900">{title}</h2>}
+              {description && <p className="mt-1 text-sm text-ink-500">{description}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="-me-1.5 rounded-lg p-1.5 text-ink-400 transition hover:bg-canvas hover:text-ink-700"
+              aria-label="بستن"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+        <div className="scroll-thin overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+        {footer && (
+          <div className="flex flex-col-reverse gap-2 border-t border-line px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
+            {footer}
+          </div>
+        )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
+}
 
-  return createPortal(content, document.body);
-};
-
+/** @deprecated Modal renders its own close button when it has a title. */
 export function ModalClose({ onClose }: { onClose: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClose}
-      className="absolute left-3 top-3 text-sm text-gray-400 hover:text-gray-600"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
+    <button type="button" onClick={onClose} aria-label="بستن" className="absolute end-3 top-3 rounded-lg p-1.5 text-ink-400 hover:bg-canvas">
+      <XMarkIcon className="h-5 w-5" />
     </button>
   );
 }

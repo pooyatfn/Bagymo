@@ -1,20 +1,27 @@
 """Billing Celery tasks (invoked by celery beat in later steps)."""
-from celery import shared_task
 from datetime import date, timedelta
+
+from celery import shared_task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import SettlementBatch, Invoice, BudgetLedger
-from bookings.models import Booking
+
 from bookings.models import Booking  # noqa: F811
 from catalog.models import Company
+
+from .models import BudgetLedger, Invoice, SettlementBatch
 
 User = get_user_model()
 
 
 @shared_task
 def aggregate_venue_settlement(venue_id, as_of):
-    """Aggregate a venue's net payout for the day; create/update a SettlementBatch."""
+    """Aggregate a venue's net payout for the day; create/update a SettlementBatch.
+
+    `as_of` is an ISO date string (task args must be JSON-serializable).
+    """
+    if isinstance(as_of, str):
+        as_of = date.fromisoformat(as_of)
     start = as_of - timedelta(days=1)
     qs = Booking.objects.filter(venue_id=venue_id, paid_at__date=as_of)
     total = sum((b.venue_net_payout for b in qs), 0)

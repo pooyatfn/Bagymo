@@ -1,114 +1,79 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Button, Input, Card } from "@/components/ui";
-import { SparklesIcon } from "@/components/icons";
+import { AuthLayout } from "@/components/AuthLayout";
+import { Button, Input } from "@/components/ui";
 import { apiErrorDetail } from "@/lib/errors";
+import { formatNumber, toEnglishDigits } from "@/lib/format";
 
 export default function CompanyRegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone_number: "",
-    password: "",
-    default_annual_budget: 0,
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone_number: "", password: "", budget: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
+  const budget = Number(toEnglishDigits(form.budget).replace(/\D/g, "")) || 0;
+  const phone = toEnglishDigits(form.phone_number).replace(/\D/g, "");
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!/^09\d{9}$/.test(phone)) return setError("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.");
+    if (form.password.length < 8) return setError("رمز عبور باید حداقل ۸ کاراکتر باشد.");
     setLoading(true);
     try {
-      await api.post("/companies/register/", form);
-      router.push("/login?registered=company");
-    } catch (err: unknown) {
-      setError(apiErrorDetail(err) || "خطا در ثبت شرکت.");
+      await api.post("/companies/register/", {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone_number: phone,
+        password: form.password,
+        default_annual_budget: budget,
+      });
+      router.push("/login?registered=company&tab=email");
+    } catch (err) {
+      setError(apiErrorDetail(err, "ثبت سازمان انجام نشد."));
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-emerald-700">
-            <SparklesIcon className="h-6 w-6" />
-            <span>باجیمو</span>
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-emerald-700 hover:underline"
-          >
-            ورود
-          </Link>
+    <AuthLayout>
+      <h1 className="text-2xl font-bold text-ink-900">ثبت سازمان</h1>
+      <p className="mt-2 text-sm leading-6 text-ink-500">
+        پس از ثبت، کارشناسان باجیمو اطلاعات را بررسی و حساب شما را فعال می‌کنند. سپس می‌توانید کارکنان را اضافه و بودجه تعیین کنید.
+      </p>
+
+      <form onSubmit={submit} className="mt-8 space-y-4">
+        <Input label="نام سازمان" placeholder="مثلاً: شرکت فناوری نوین" value={form.name} onChange={set("name")} required />
+        <Input label="ایمیل سازمانی" type="email" placeholder="hr@company.com" value={form.email} onChange={set("email")} autoComplete="email" required helper="برای ورود به پنل مدیریت سازمان استفاده می‌شود." />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="موبایل مدیر" type="tel" inputMode="numeric" placeholder="09123456789" value={form.phone_number} onChange={set("phone_number")} autoComplete="tel" required />
+          <Input label="رمز عبور" type="password" placeholder="حداقل ۸ کاراکتر" value={form.password} onChange={set("password")} autoComplete="new-password" required />
         </div>
+        <Input
+          label="بودجه سالانه پیش‌فرض هر کارمند"
+          inputMode="numeric"
+          suffix="تومان"
+          placeholder="مثلاً ۸٬۰۰۰٬۰۰۰"
+          value={budget ? formatNumber(budget) : form.budget}
+          onChange={set("budget")}
+          helper="بعداً برای هر نفر قابل تغییر است."
+        />
+        {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" loading={loading}>
+          ثبت سازمان
+        </Button>
+      </form>
 
-        <Card className="p-8 shadow-xl ring-1 ring-gray-200/50">
-          <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">ثبت شرکت جدید</h1>
-          <p className="mb-6 text-center text-sm text-gray-600">
-            شرکت خود را ثبت کنید و به بودجه سلامتی کارمندان خود دسترسی داشته باشید.
-            <br />
-            <span className="text-xs text-gray-500">پس از تایید توسط ادمین، می‌توانید وارد شوید.</span>
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="نام شرکت"
-              placeholder="مثال: شرکت فناوری نوین"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-            <Input
-              label="ایمیل"
-              type="email"
-              placeholder="example@company.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-            <Input
-              label="شماره تلفن (مدیر شرکت)"
-              type="tel"
-              placeholder="0912 xxx 0000"
-              value={form.phone_number}
-              onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-              autoComplete="tel"
-              dir="ltr"
-              required
-            />
-            <Input
-              label="رمز عبور"
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              autoComplete="new-password"
-              required
-            />
-            <Input
-              label="بودجه سالانه پیش‌فرض (تومان)"
-              type="number"
-              placeholder="مثال: 8000000"
-              value={form.default_annual_budget}
-              onChange={(e) => setForm({ ...form, default_annual_budget: parseInt(e.target.value) || 0 })}
-            />
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" variant="primary" size="md" loading={loading} className="w-full">
-              ثبت شرکت
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-xs text-gray-600">
-            <span>© {new Date().getFullYear()} باجیمو — پلتفرم سلامت سازمانی.</span>
-          </div>
-        </Card>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-ink-500">
+        قبلاً ثبت کرده‌اید؟{" "}
+        <Link href="/login?tab=email" className="font-medium text-brand-700 hover:text-brand-800">
+          ورود
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

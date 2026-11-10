@@ -1,10 +1,27 @@
+# Python
 .venv/
-web/node_modules/
-*.pyc
 __pycache__/
-*.log
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Django
 /staticfiles
 /media
+db.sqlite3
+
+# env / IDE
 .env
 .idea/
+.vscode/
+*.log
+
+# web (Next.js)
+web/node_modules/
 web/.next/
+web/tsconfig.tsbuildinfo
+web/.env.local
+
+# offline pip packages for docker (see wheels/README.md)
+wheels/*
+!wheels/README.md

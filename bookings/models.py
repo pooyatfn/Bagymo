@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from catalog.models import Venue, Offer, Company, TimeSlot
+from catalog.models import Company, Offer, TimeSlot, Venue
 
 
 class Booking(models.Model):

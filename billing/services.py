@@ -10,13 +10,15 @@ Formulas (locked business model):
   platform margin      = employee_commission + venue_commission = price − venue_net_payout
 """
 from decimal import ROUND_HALF_UP, Decimal
-from django.conf import settings
-from django.db import models as django_models, transaction
-from django.utils import timezone
-from django.core.cache import cache
 
+from django.conf import settings
+from django.core.cache import cache
+from django.db import models as django_models
+from django.db import transaction
+from django.utils import timezone
+
+from billing.models import BudgetLedger
 from bookings.models import Booking
-from billing.models import BudgetLedger, SettlementBatch
 from catalog.models import VenueCompanyAccess
 
 TOMAN = Decimal("1")
@@ -49,9 +51,19 @@ def commission_split(price, c_emp, c_venue):
     }
 
 
-def _generate_checkin_code():
+# no 0/O/1/I so codes are easy to read aloud and type at the front desk
+_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _generate_checkin_code(length: int = 6) -> str:
     import secrets
-    return secrets.token_urlsafe(6).upper().replace("-", "")[:10]
+
+    from bookings.models import Booking
+
+    while True:
+        code = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))
+        if not Booking.objects.filter(check_in_code=code).exists():
+            return code
 
 
 def reserve_booking(employee, offer, timeslot=None):
@@ -60,11 +72,11 @@ def reserve_booking(employee, offer, timeslot=None):
     Raises InsufficientBudget, GeoError, etc.
     """
     if not employee.remaining_budget:
-        raise InsufficientBudget("Employee has no budget.")
+        raise InsufficientBudget("بودجه‌ای برای شما باقی نمانده است.")
 
     if offer.price > employee.remaining_budget:
         raise InsufficientBudget(
-            f"Offer costs {offer.price:,} but only {employee.remaining_budget:,} budget remains."
+            f"هزینه این خدمت {offer.price:,} تومان است ولی بودجه باقی‌مانده شما {employee.remaining_budget:,} تومان است."
         )
 
     c_emp = employee.effective_commission_pct_emp()
@@ -90,7 +102,7 @@ def reserve_booking(employee, offer, timeslot=None):
             .get(pk=employee.pk)
         )
         if employee.remaining_budget < offer.price:
-            raise InsufficientBudget("Budget changed during reservation.")
+            raise InsufficientBudget("بودجه شما در حین رزرو تغییر کرد؛ دوباره تلاش کنید.")
         employee.remaining_budget = employee.remaining_budget - offer.price
         employee.save(update_fields=["remaining_budget", "updated_at"])
 
@@ -103,7 +115,15 @@ def reserve_booking(employee, offer, timeslot=None):
         )
 
         ttl_minutes = settings.RESERVATION_TTL_MINUTES
-        expires_at = timezone.now() + timezone.timedelta(minutes=ttl_minutes)
+        if timeslot is not None:
+            # a slot booking stays valid until the slot ends (not just the short hold window)
+            import datetime as _dt
+
+            slot_end = _dt.datetime.combine(timeslot.date, timeslot.end_time)
+            slot_end = timezone.make_aware(slot_end) if timezone.is_naive(slot_end) else slot_end
+            expires_at = max(slot_end, timezone.now() + timezone.timedelta(minutes=ttl_minutes))
+        else:
+            expires_at = timezone.now() + timezone.timedelta(minutes=ttl_minutes)
         booking = Booking.objects.create(
             employee=employee,
             venue=offer.venue,
@@ -150,14 +170,18 @@ def mark_checked_in(booking, code, staff_code, request):
     Verify a booking via numeric/QR code at the venue. Marks CHECKED_IN.
     Returns (bool ok, str message).
     """
+    if booking.status in (Booking.Status.CHECKED_IN, Booking.Status.COMPLETED):
+        return False, "ورود این رزرو قبلاً ثبت شده است."
     if booking.status not in (Booking.Status.PAID, Booking.Status.RESERVED):
-        return False, f"Booking cannot be checked in (status={booking.status})."
-    if booking.expires_at < timezone.now():
-        booking.status = Booking.Status.EXPIRED
-        booking.save(update_fields=["status", "completed_at"])
-        return False, "Reservation expired."
+        return False, "این رزرو لغو یا منقضی شده است."
+    if booking.expires_at and booking.expires_at < timezone.now():
+        # let the shared expiry routine flip the status *and* refund the budget
+        from bookings.views import _expire_past_bookings
+
+        _expire_past_bookings()
+        return False, "مهلت این رزرو تمام شده است."
     if code is None or str(code) != booking.check_in_code:
-        return False, "Check-in code mismatch."
+        return False, "کد ورود مطابقت ندارد."
 
     # geo fence (best-effort; staff enters coords or app sends)
     lat = request.data.get("lat")
@@ -182,7 +206,7 @@ def mark_checked_in(booking, code, staff_code, request):
         geo_ok = True
 
     if not geo_ok:
-        return False, "Check-in rejected: outside venue geofence."
+        return False, "موقعیت ثبت ورود خارج از محدوده مجموعه است."
 
     if staff_code and not staff_code.strip().lower().startswith("skip"):
         booking.staff_code = staff_code
@@ -196,5 +220,5 @@ def mark_checked_in(booking, code, staff_code, request):
 
     # queue settlement aggregation
     from billing.tasks import aggregate_venue_settlement
-    aggregate_venue_settlement.delay(booking.venue_id, timezone.now().date())
-    return True, "Checked in."
+    aggregate_venue_settlement.delay(booking.venue_id, timezone.localdate().isoformat())
+    return True, f"ورود ثبت شد: {booking.offer.name}"

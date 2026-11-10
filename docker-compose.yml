@@ -33,8 +33,53 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_URL: redis://redis:6379/1
+      CELERY_EAGER: "false"  # tasks go to celery-worker
     ports:
       - "8000:8000"
+    volumes:
+      - ./:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # Celery worker: runs background tasks (settlements, Neshan venue sync, …)
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bagymo-celery-worker
+    command: celery -A config worker -l info
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/1
+      CELERY_EAGER: "false"
+    volumes:
+      - ./:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # Celery beat: schedules periodic tasks (CELERY_BEAT_SCHEDULE in settings, editable in Django admin)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bagymo-celery-beat
+    command: celery -A config beat -l info
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/1
+      CELERY_EAGER: "false"
     volumes:
       - ./:/app
     depends_on:
@@ -48,13 +93,13 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_SUPPORT_PHONE: ${NEXT_PUBLIC_SUPPORT_PHONE:-}
+        NEXT_PUBLIC_SUPPORT_EMAIL: ${NEXT_PUBLIC_SUPPORT_EMAIL:-}
     container_name: bagymo-frontend
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    volumes:
-      - ./web/src:/app/src
     depends_on:
       - backend
     restart: unless-stopped

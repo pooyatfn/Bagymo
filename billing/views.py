@@ -1,12 +1,16 @@
 """Billing API URLs (monthly invoices + venue self-settlement view)."""
-from django.db.models import Sum, Count, Q
-from django.utils import timezone
 from datetime import timedelta
+
+from django.db.models import Count, Sum
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Invoice, SettlementBatch, BudgetLedger
+
 from bookings.models import Booking
+from core.permissions import COMPANY_MANAGER_ROLES
+
+from .models import Invoice, SettlementBatch
 
 
 @api_view(["GET"])
@@ -14,9 +18,12 @@ from bookings.models import Booking
 def my_invoices(request):
     user = request.user
     if user.role == "admin":
-        qs = Invoice.objects.all()
+        qs = Invoice.objects.select_related("company")
+    elif user.company_id:
+        qs = Invoice.objects.select_related("company").filter(company=user.company)
     else:
-        qs = Invoice.objects.filter(company=user.company)
+        qs = Invoice.objects.none()
+    qs = qs.order_by("-period_end")
     return Response([
         {"id": i.id, "company": i.company.name, "period_start": i.period_start,
          "period_end": i.period_end, "total_toman": i.total_toman,
@@ -28,8 +35,8 @@ def my_invoices(request):
 @permission_classes([IsAuthenticated])
 def venue_settlements(request):
     user = request.user
-    if user.role != "venue_staff":
-        return Response({"detail": "venue staff only"}, status=403)
+    if user.role != "venue_staff" or not user.venue_id:
+        return Response({"detail": "فقط برای مدیر مجموعه."}, status=403)
     batches = SettlementBatch.objects.filter(venue=user.venue).order_by("-period_end")
     return Response([
         {"id": b.id, "period_start": b.period_start, "period_end": b.period_end,
@@ -46,10 +53,10 @@ def company_bookings(request):
     qs = Booking.objects.select_related("offer", "venue", "employee").all()
     if user.role == "admin":
         pass
-    elif user.role == "company_admin":
+    elif user.role in COMPANY_MANAGER_ROLES:
         qs = qs.filter(company=user.company)
     else:
-        return Response({"detail": "Not allowed"}, status=403)
+        return Response({"detail": "دسترسی مجاز نیست."}, status=403)
     return Response([
         {"id": b.id, "employee_id": b.employee_id, "employee_name": b.employee.name, "employee_phone": b.employee.phone_number,
          "venue_id": b.venue_id, "venue_name": b.venue.name, "offer_name": b.offer.name,
@@ -65,11 +72,11 @@ def company_bookings(request):
 def company_analytics(request):
     """Company analytics: totals, top employees, venue breakdown."""
     user = request.user
-    if user.role not in ("admin", "company_admin"):
-        return Response({"detail": "Not allowed"}, status=403)
+    if user.role != "admin" and user.role not in COMPANY_MANAGER_ROLES:
+        return Response({"detail": "دسترسی مجاز نیست."}, status=403)
 
     qs = Booking.objects.select_related("offer", "venue", "employee").filter(status="checked_in")
-    if user.role == "company_admin":
+    if user.role in COMPANY_MANAGER_ROLES:
         qs = qs.filter(company=user.company)
 
     total_bookings = qs.count()

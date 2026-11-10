@@ -6,8 +6,17 @@ RUN npm ci --legacy-peer-deps
 FROM deps AS builder
 WORKDIR /app
 COPY . .
+# NEXT_PUBLIC_* values are inlined at build time
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# optional contact details shown on /contact
+ARG NEXT_PUBLIC_SUPPORT_PHONE=
+ARG NEXT_PUBLIC_SUPPORT_EMAIL=
+ENV NEXT_PUBLIC_SUPPORT_PHONE=$NEXT_PUBLIC_SUPPORT_PHONE NEXT_PUBLIC_SUPPORT_EMAIL=$NEXT_PUBLIC_SUPPORT_EMAIL
 ENV NODE_ENV=production
-RUN npm run build
+ENV NEXT_TELEMETRY_DISABLED=1
+# public/ is optional in the repo; make sure it exists for the runner stage
+RUN mkdir -p public && npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app

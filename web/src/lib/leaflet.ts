@@ -1,66 +1,24 @@
-// Minimal, type-safe shims for the Leaflet object loaded from CDN at runtime.
-// We do NOT import the `leaflet` package (to keep the existing CDN-loading +
-// SSR-safe behaviour); instead we type the global `window.L` surface.
+/**
+ * Lazy-load Leaflet from the bundled npm package (client-only).
+ * Leaflet touches `window` on import, so it must never load during SSR.
+ * Its CSS is imported once in app/globals.css.
+ */
+import type * as Leaflet from "leaflet";
 
-export interface LatLngExpression {
-  lat: number;
-  lng: number;
+export type { Map as LMap, Marker as LMarker } from "leaflet";
+
+let promise: Promise<typeof Leaflet> | null = null;
+
+export function loadLeaflet(): Promise<typeof Leaflet> {
+  promise ??= import("leaflet").then((m) => (m.default ?? m) as typeof Leaflet);
+  return promise;
 }
 
-export interface LMap {
-  setView(center: LatLngExpression, zoom: number): LMap;
-  on(event: string, handler: (e: { latlng: LatLngExpression }) => void): LMap;
-  off(event: string, handler: (e: { latlng: LatLngExpression }) => void): LMap;
-  remove(): void;
-  invalidateSize(): void;
-  flyTo(center: LatLngExpression, zoom: number): LMap;
-}
+export const TEHRAN: [number, number] = [35.6892, 51.389];
+export const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+export const TILE_ATTRIBUTION = "&copy; OpenStreetMap";
 
-export interface LMarker {
-  addTo(map: LMap): LMarker;
-  setLatLng(latLng: LatLngExpression): LMarker;
-  getLatLng(): LatLngExpression;
-  on(event: string, handler: () => void): LMarker;
-  remove(): void;
-}
-
-export interface LTileLayer {
-  addTo(map: LMap): LTileLayer;
-}
-
-export interface LDivIcon {
-  options?: Record<string, unknown>;
-}
-
-export interface LMarkerOptions {
-  draggable?: boolean;
-  icon?: LDivIcon;
-}
-
-export interface LDivIconOptions {
-  html: string;
-  className?: string;
-  iconSize?: [number, number];
-  iconAnchor?: [number, number];
-}
-
-export interface LTileLayerOptions {
-  attribution?: string;
-  maxZoom?: number;
-}
-
-export interface LeafletStatic {
-  map(el: HTMLElement): LMap;
-  tileLayer(url: string, opts?: LTileLayerOptions): LTileLayer;
-  marker(pos: LatLngExpression, opts?: LMarkerOptions): LMarker;
-  divIcon(opts: LDivIconOptions): LDivIcon;
-}
-
-export interface LeafletWindow {
-  L?: LeafletStatic;
-}
-
-export function getLeaflet(): LeafletStatic | null {
-  if (typeof window === "undefined") return null;
-  return (window as unknown as LeafletWindow).L ?? null;
+/** Round pin used for markers (keeps us independent of Leaflet's image assets). */
+export function pinHtml(color: string, label = "", size = 30): string {
+  return `<div style="width:${size}px;height:${size}px;background:${color};border:3px solid #fff;border-radius:9999px;box-shadow:0 4px 10px rgba(16,24,40,.25);display:flex;align-items:center;justify-content:center;color:#fff;font:600 12px Vazirmatn,sans-serif">${label}</div>`;
 }

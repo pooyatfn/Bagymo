@@ -1,7 +1,8 @@
 """Company HR serializers."""
 from rest_framework import serializers
+
 from accounts.models import User
-from billing.models import BudgetLedger, Invoice
+from billing.models import BudgetLedger
 
 
 class EmployeeBudgetSerializer(serializers.ModelSerializer):
@@ -26,29 +27,8 @@ class EmployeeListSerializer(serializers.ModelSerializer):
         return round(used / obj.annual_budget * 100, 1)
 
 
-class BudgetAdjustSerializer(serializers.Serializer):
-    amount = serializers.IntegerField(min_value=1, help_text="Amount in Toman (positive only)")
-    description = serializers.CharField(max_length=300, required=False, default="HR adjustment")
-
-    def validate(self, attrs):
-        user = self.context["view"].employee
-        if attrs["amount"] > user.remaining_budget:
-            raise serializers.ValidationError("Cannot debit more than remaining budget.")
-        return attrs
-
-
 class LedgerEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetLedger
         fields = ["id", "type", "amount", "reference", "description", "created_at"]
         read_only_fields = fields
-
-
-class CompanyDashboardSerializer(serializers.Serializer):
-    company_name = serializers.CharField()
-    user_count = serializers.IntegerField()
-    total_annual_budget = serializers.IntegerField()
-    total_remaining = serializers.IntegerField()
-    total_used = serializers.IntegerField()
-    total_bookings = serializers.IntegerField()
-    invoices = serializers.ListField(child=serializers.DictField())

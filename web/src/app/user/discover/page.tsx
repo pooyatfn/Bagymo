@@ -1,618 +1,630 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { PageShell } from "@/components/PageShell";
-import { Button, Card, LoadingState, EmptyState, Modal } from "@/components/ui";
-import { Badge } from "@/components/ui";
-import dynamic from "next/dynamic";
 import LocationPicker from "@/components/LocationPicker";
-import { MapPinIcon } from "@/components/icons";
-import { formatTomans } from "@/lib/format";
-import { Venue, Offer, TimeSlot, VenueRating, GenderSlot } from "@/lib/types";
+import { Badge, Button, Card, EmptyState, fieldClass, LoadingState, Modal, Skeleton, Textarea, useToast } from "@/components/ui";
+import { ArrowLeftIcon, CalendarIcon, CheckCircleIcon, ClockIcon, MapPinIcon, SearchIcon, StarIconSolid, XMarkIcon } from "@/components/icons";
+import { categoryMeta } from "@/lib/categories";
+import { cn } from "@/lib/cn";
+import { apiErrorDetail } from "@/lib/errors";
+import { formatClock, formatDate, formatNumber, formatTomans, formatTomansShort, GENDER_LABELS } from "@/lib/format";
+import type { GenderSlot, Offer, TimeSlot, Venue, VenueRating } from "@/lib/types";
 
-const MapView = dynamic(() => import("@/components/MapView"), { ssr: false });
+const MapView = dynamic(() => import("@/components/MapView"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-full w-full rounded-none" />,
+});
+
+type LatLng = { lat: number; lng: number };
+
+function haversineKm(a: LatLng, b: LatLng) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+/** Can a user of `gender` use a venue whose current policy is `policy`? */
+function genderAllowed(policy: string | undefined, gender?: string | null) {
+  if (!gender || !policy || policy === "mixed") return true;
+  return policy === gender;
+}
 
 export default function DiscoverPage() {
   const { user, refreshUser } = useAuth();
-  const { data: venuesData, loading: venuesLoading, refetch } = useApi<Venue[]>("/catalog/venues/");
-  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [timeslots, setTimeslots] = useState<TimeSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [booking, setBooking] = useState<number | null>(null);
+  const { data, loading } = useApi<Venue[]>("/catalog/venues/");
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("all");
   const [view, setView] = useState<"list" | "map">("list");
-  const [venueRatings, setVenueRatings] = useState<VenueRating[]>([]);
-  const [ratingScore, setRatingScore] = useState(5);
-  const [ratingComment, setRatingComment] = useState("");
-  const [submittingRating, setSubmittingRating] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState("");
+  const [location, setLocation] = useState<LatLng | null>(null);
+  const [locError, setLocError] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [selected, setSelected] = useState<Venue | null>(null);
 
-  const venuesList = venuesData || [];
+  const venues = useMemo(() => data || [], [data]);
 
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationError("مرورگر شما از موقعیت مکانی پشتیبانی نمی‌کند");
-      return;
-    }
-    setLocationError("");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocationError("");
-      },
-      (err) => {
-        const msg =
-          err.code === 1
-            ? "دسترسی به موقعیت مکانی رد شد. از تنظیمات مرورگر اجازه دهید."
-            : err.code === 2
-            ? "موقعیت مکانی در دسترس نیست. روی دسکتاپ ممکن است GPS فعال نباشد."
-            : err.code === 3
-            ? "دریافت موقعیت مکانی بیش از حد طول کشید."
-            : "خطا در دریافت موقعیت مکانی.";
-        setLocationError(msg);
-      },
-      { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 }
-    );
-  };
+  // deep link: /user/discover?venue=12 opens that venue's booking sheet
+  const [deepLink, setDeepLink] = useState<number | null>(() =>
+    typeof window === "undefined" ? null : Number(new URLSearchParams(window.location.search).get("venue")) || null,
+  );
+  const sheet = selected ?? (deepLink ? (venues.find((v) => v.id === deepLink) ?? null) : null);
 
-  const loadOffers = async (venueId: number) => {
-    const res = await api.get<Offer[]>(`/catalog/venues/${venueId}/offers/`);
-    setOffers(res.data);
-  };
+  const categories = useMemo(() => {
+    const seen = new Map<string, string>();
+    venues.forEach((v) => v.category_slug && seen.set(v.category_slug, categoryMeta(v.category_slug, v.category_name).label));
+    return Array.from(seen, ([slug, label]) => ({ slug, label }));
+  }, [venues]);
 
-  const loadTimeslots = async (offerId: number) => {
-    const res = await api.get<TimeSlot[]>(`/catalog/offer-timeslots/${offerId}/`);
-    setTimeslots(res.data);
-  };
+  const distanceOf = (v: Venue) => (location && v.lat != null && v.lng != null ? haversineKm(location, { lat: v.lat, lng: v.lng }) : null);
 
-  const loadRatings = async (venueId: number) => {
-    const res = await api.get<VenueRating[]>(`/catalog/venues/${venueId}/ratings/`);
-    setVenueRatings(res.data);
-  };
-
-  const handleSubmitRating = async () => {
-    if (!selectedVenue) return;
-    setSubmittingRating(true);
-    try {
-      await api.post(`/catalog/venues/${selectedVenue.id}/rate/`, {
-        score: ratingScore,
-        comment: ratingComment,
-      });
-      setRatingComment("");
-      setRatingScore(5);
-      loadRatings(selectedVenue.id);
-      refetch();
-    } catch (err) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || "خطا در ارسال نظر");
-    }
-    setSubmittingRating(false);
-  };
-
-  const handleSelectOffer = async (offer: Offer) => {
-    setSelectedOffer(offer);
-    setSelectedSlot(null);
-    await loadTimeslots(offer.id);
-  };
-
-  const handleBook = async () => {
-    if (!selectedOffer) return;
-    if (!user) {
-      alert("برای رزرو باید وارد شوید.");
-      return;
-    }
-    setBooking(selectedOffer.id);
-    try {
-      const payload: { offer_id: number; timeslot_id?: number } = {
-        offer_id: selectedOffer.id,
-      };
-      if (selectedSlot) payload.timeslot_id = selectedSlot;
-      const res = await api.post<{ check_in_code: string }>("/bookings/", payload);
-      alert(`رزرو شد! کد ورود: ${res.data.check_in_code}`);
-      setBooking(null);
-      setSelectedOffer(null);
-      setSelectedSlot(null);
-      setSelectedVenue(null);
-      refreshUser();
-    } catch (err) {
-      const e = err as { response?: { data?: Record<string, unknown> } };
-      alert(
-        String(
-          e.response?.data?.detail ||
-            e.response?.data?.timeslot_id ||
-            "خطا در رزرو"
-        )
-      );
-      setBooking(null);
-    }
-  };
-
-  const closeVenue = () => {
-    setSelectedVenue(null);
-    setSelectedOffer(null);
-    setTimeslots([]);
-    setOffers([]);
-  };
-
-  if (!user) {
-    // Allow public access to discover page, just without booking capabilities
-  }
-
-  const userGender = user ? (user as { gender?: string }).gender : undefined;
-
-  const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLng = ((lng2 - lng1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  };
-
-  const getDistance = (v: Venue): number | null => {
-    if (!userLocation || !v.lat || !v.lng) return null;
-    return haversine(userLocation.lat, userLocation.lng, v.lat, v.lng);
-  };
-
-  const filtered: Venue[] = (venuesList || []).filter((v: Venue) => {
-      const matchesSearch =
-        !search ||
-        v.name?.includes(search) ||
-        v.district?.includes(search || "");
-      if (!matchesSearch) return false;
-      const currentGender = v.gender_for_now || v.gender_policy;
-      if (!userGender) return true;
-      if (userGender === "male")
-        return currentGender === "mixed" || currentGender === "male";
-      if (userGender === "female")
-        return currentGender === "mixed" || currentGender === "female";
-      return true;
+  const filtered = venues
+    .filter((v) => {
+      const q = search.trim();
+      if (q && !v.name?.includes(q) && !v.district?.includes(q) && !v.address?.includes(q)) return false;
+      if (category !== "all" && v.category_slug !== category) return false;
+      return genderAllowed(v.gender_for_now || v.gender_policy, user?.gender);
     })
     .sort((a, b) => {
-      const da = getDistance(a);
-      const db = getDistance(b);
+      const da = distanceOf(a);
+      const db = distanceOf(b);
+      if (da === null && db === null) return 0;
       if (da === null) return 1;
       if (db === null) return -1;
       return da - db;
     });
 
+  const useGps = () => {
+    if (!navigator.geolocation) {
+      setLocError("مرورگر شما از موقعیت مکانی پشتیبانی نمی‌کند.");
+      return;
+    }
+    setLocating(true);
+    setLocError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      (err) => {
+        setLocError(
+          err.code === 1
+            ? "اجازه دسترسی به موقعیت داده نشد. از تنظیمات مرورگر اجازه دهید یا روی نقشه انتخاب کنید."
+            : "دریافت موقعیت ممکن نشد. لطفاً موقعیت را روی نقشه انتخاب کنید.",
+        );
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 20000, maximumAge: 300000 },
+    );
+  };
+
   return (
-    <PageShell title="کشف باشگاه‌ها" maxWidth="7xl" padded={false}>
-      {venuesLoading ? (
-        <LoadingState message="در حال بارگذاری باشگاه‌ها..." />
-      ) : (
-        <div className="px-4 sm:px-6">
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              کشف باشگاه‌ها
-            </h1>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="جستجو بر اساس نام یا منطقه..."
-                className="w-full sm:w-64 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-              <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
+    <PageShell
+      roles={["user"]}
+      title="کشف مجموعه‌ها"
+      subtitle="باشگاه، استخر، سینما و مجموعه‌های طرف قرارداد را پیدا کنید و با بودجه شرکت رزرو کنید."
+      maxWidth="7xl"
+      action={
+        user && (
+          <Badge variant="brand" className="px-3 py-1.5 text-sm">
+            بودجه شما: {formatTomansShort(user.remaining_budget)}
+          </Badge>
+        )
+      }
+    >
+      {/* Toolbar */}
+      <Card p="sm" className="mb-6 space-y-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative flex-1">
+            <SearchIcon className="pointer-events-none absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="جستجوی نام مجموعه، محله یا آدرس…"
+              className={cn(fieldClass(), "h-11 ps-10")}
+              aria-label="جستجو"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            {location ? (
+              <Button variant="secondary" onClick={() => setLocation(null)} icon={<XMarkIcon />}>
+                مرتب‌سازی بر اساس فاصله
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={useGps} loading={locating} icon={<MapPinIcon />}>
+                نزدیک من
+              </Button>
+            )}
+            <div className="inline-flex rounded-xl bg-gray-100/80 p-1" role="tablist" aria-label="نوع نمایش">
+              {(["list", "map"] as const).map((k) => (
                 <button
-                  onClick={() => setView("list")}
-                  className={`rounded px-3 py-1.5 text-sm font-medium ${view === "list" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+                  key={k}
+                  role="tab"
+                  aria-selected={view === k}
+                  onClick={() => setView(k)}
+                  className={cn(
+                    "rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
+                    view === k ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-900",
+                  )}
                 >
-                  لیست
+                  {k === "list" ? "فهرست" : "نقشه"}
                 </button>
-                <button
-                  onClick={() => setView("map")}
-                  className={`rounded px-3 py-1.5 text-sm font-medium ${view === "map" ? "bg-emerald-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
-                >
-                  نقشه
-                </button>
-              </div>
+              ))}
             </div>
           </div>
+        </div>
 
-          {!userLocation && (
-            <div className="mb-4 space-y-3">
-              <LocationPicker
-                onPick={(lat, lng) => {
-                  setUserLocation({ lat, lng });
-                  setLocationError("");
-                }}
-                initialCenter={[35.6892, 51.389]}
-                buttonText="انتخاب موقعیت از نقشه"
-              />
+        {categories.length > 1 && (
+          <div className="scroll-thin -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+            {[{ slug: "all", label: "همه" }, ...categories].map((c) => (
               <button
-                onClick={requestLocation}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                key={c.slug}
+                onClick={() => setCategory(c.slug)}
+                className={cn(
+                  "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition",
+                  category === c.slug ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-surface text-ink-700 hover:border-gray-300",
+                )}
               >
-                <MapPinIcon className="h-4 w-4" />
-                استفاده از موقعیت خودکار (GPS)
+                {c.label}
               </button>
-              {locationError && (
-                <p className="text-xs text-amber-600">{locationError}</p>
-              )}
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {userLocation && (
-            <div className="mb-4 flex items-center justify-end rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2">
-              <button
-                onClick={() => setUserLocation(null)}
-                className="text-xs text-red-500 hover:underline"
-              >
-                حذف موقعیت
-              </button>
-            </div>
-          )}
+        {!location && (locError || view === "map") && (
+          <div className="space-y-2">
+            {locError && <p className="text-xs text-amber-700">{locError}</p>}
+            <LocationPicker onPick={(lat, lng) => setLocation({ lat, lng })} buttonText="انتخاب موقعیت من روی نقشه" />
+          </div>
+        )}
+      </Card>
 
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-44 rounded-2xl" />
+          ))}
+        </div>
+      ) : (
+        <>
           {view === "map" && (
-            <div className="mb-6 h-[500px] rounded-xl overflow-hidden shadow-sm border border-gray-200">
-              <MapView
-                venues={filtered}
-                userLocation={userLocation}
-                onSelect={(v: Venue) => {
-                  setSelectedVenue(v);
-                  loadOffers(v.id);
-                  loadRatings(v.id);
-                }}
-              />
-            </div>
+            <Card p="none" className="mb-6 h-[460px] overflow-hidden">
+              <MapView venues={filtered} userLocation={location} onSelect={setSelected} />
+            </Card>
           )}
+
+          <p className="mb-3 text-sm text-ink-500">{formatNumber(filtered.length)} مجموعه</p>
 
           {filtered.length === 0 ? (
-            <EmptyState
-              title="باشگاهی یافت نشد"
-              description="جست‌واژه یا موقعیت خود را تغییر دهید."
-            />
+            <Card>
+              <EmptyState
+                icon={<SearchIcon />}
+                title="مجموعه‌ای پیدا نشد"
+                description="عبارت جستجو یا دسته‌بندی را تغییر دهید."
+                action={
+                  (search || category !== "all") && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearch("");
+                        setCategory("all");
+                      }}
+                    >
+                      پاک کردن فیلترها
+                    </Button>
+                  )
+                }
+              />
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {filtered.map((v) => (
-                <Card
-                  key={v.id}
-                  hover
-                  className="cursor-pointer p-5"
-                  onClick={() => {
-                    setSelectedVenue(v);
-                    loadOffers(v.id);
-                    loadRatings(v.id);
-                  }}
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900 truncate">
-                      {v.name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <Badge variant="info" size="sm">
-                        {v.category_name}
-                      </Badge>
-                      {v.gender_for_now === "male" && (
-                        <Badge variant="info" size="sm">آقایان</Badge>
-                      )}
-                      {v.gender_for_now === "female" && (
-                        <Badge variant="warning" size="sm">بانوان</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {v.district} · {v.city}
-                  </p>
-                  {v.address && (
-                    <p className="mt-1 text-xs text-gray-600 truncate">
-                      {v.address}
-                    </p>
-                  )}
-                  {(() => {
-                    const d = getDistance(v);
-                    return d != null ? (
-                      <p className="mt-1 text-xs text-emerald-600">
-                        {d.toFixed(1)} کیلومتر
-                      </p>
-                    ) : null;
-                  })()}
-                  {v.avg_rating != null && (
-                    <p className="mt-1 text-sm text-amber-600">
-                      ★ {v.avg_rating}{" "}
-                      <span className="text-xs text-gray-600">
-                        ({v.rating_count} نظر)
-                      </span>
-                    </p>
-                  )}
-                  {v.description && (
-                    <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                      {v.description}
-                    </p>
-                  )}
-                </Card>
+                <VenueCard key={v.id} venue={v} distance={distanceOf(v)} onOpen={() => setSelected(v)} />
               ))}
             </div>
           )}
-        </div>
+        </>
       )}
 
-      {/* Venue Detail Modal */}
-      {selectedVenue && (
-        <Modal open={!!selectedVenue} onClose={closeVenue} className="max-w-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">
-              {selectedVenue.name}
-            </h2>
-            <button
-              onClick={closeVenue}
-              className="text-2xl text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-          <p className="mb-1 text-sm text-gray-600">
-            {selectedVenue.district} · {selectedVenue.city}
-          </p>
-          {selectedVenue.address && (
-            <p className="mb-3 text-sm text-gray-600">
-              {selectedVenue.address}
-            </p>
-          )}
-
-          {selectedVenue.gender_slots && selectedVenue.gender_slots.length > 0 && (
-            <div className="mb-4 rounded-lg bg-gray-50 p-3">
-              <p className="mb-2 text-xs font-medium text-gray-600">سانس‌ها:</p>
-              <div className="space-y-1">
-                {genderSlotGroups(selectedVenue.gender_slots).map((g) => (
-                  <div
-                    key={g.day}
-                    className="flex items-center gap-2 text-xs"
-                  >
-                    <span className="w-20 font-medium text-gray-700">
-                      {g.label}
-                    </span>
-                    {g.slots.map((s) => (
-                      <span
-                        key={s.id}
-                        className={`rounded px-1.5 py-0.5 ${
-                          s.gender === "male"
-                            ? "bg-blue-100 text-blue-700"
-                            : s.gender === "female"
-                            ? "bg-pink-100 text-pink-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {s.start_time?.slice(0, 5)}-{s.end_time?.slice(0, 5)}{" "}
-                        {s.gender === "male"
-                          ? "آقایان"
-                          : s.gender === "female"
-                          ? "بانوان"
-                          : ""}
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {!selectedVenue.gender_slots?.length &&
-            selectedVenue.gender_policy !== "mixed" && (
-              <div className="mb-4 rounded-lg bg-gray-50 p-3">
-                <p className="text-xs text-gray-600">
-                  سیاست جنسیت:{" "}
-                  {selectedVenue.gender_policy === "male"
-                    ? "آقایان"
-                    : "بانوان"}
-                </p>
-              </div>
-            )}
-
-          {selectedOffer ? (
-            <div>
-              <button
-                onClick={() => {
-                  setSelectedOffer(null);
-                  setTimeslots([]);
-                }}
-                className="mb-3 text-sm text-emerald-600 hover:underline"
-              >
-                بازگشت به لیست آفرها
-              </button>
-              <p className="mb-1 font-semibold text-gray-900">
-                {selectedOffer.name}
-              </p>
-              <p className="mb-3 text-sm text-gray-600">
-                {selectedOffer.duration_minutes} دقیقه ·{" "}
-                {formatTomans(selectedOffer.price)}
-              </p>
-              {timeslots.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-gray-600 mb-3">زمان رزرو موجود نیست.</p>
-                  <Button
-                    variant="primary"
-                    onClick={handleBook}
-                    loading={booking === selectedOffer.id}
-                    disabled={booking !== null}
-                  >
-                    {booking ? "در حال رزرو..." : "رزرو بدون انتخاب زمان"}
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-2 text-xs font-medium text-gray-600">
-                    زمان مورد نظر را انتخاب کنید:
-                  </p>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {timeslots.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() =>
-                          setSelectedSlot(s.id === selectedSlot ? null : s.id)
-                        }
-                        disabled={!s.is_available}
-                        className={`w-full rounded-lg border p-3 text-right text-sm transition ${
-                          !s.is_available
-                            ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
-                            : s.id === selectedSlot
-                            ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
-                            : "border-gray-200 hover:border-emerald-300"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            {s.date} · {s.start_time?.slice(0, 5)} -{" "}
-                            {s.end_time?.slice(0, 5)}
-                          </span>
-                          {s.is_available ? (
-                            <span className="text-xs text-emerald-600">
-                              {s.remaining > 0
-                                ? `${s.remaining} ظرفیت`
-                                : "موجود"}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-red-400">تکمیل</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="primary"
-                    className="mt-4 w-full"
-                    onClick={handleBook}
-                    loading={booking === selectedOffer.id}
-                    disabled={booking !== null}
-                  >
-                    {booking ? "در حال رزرو..." : "رزرو"}
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : offers.length === 0 ? (
-            <p className="py-8 text-center text-gray-600">آفری موجود نیست.</p>
-          ) : (
-            <div className="space-y-3">
-              {offers.map((o) => (
-                <div
-                  key={o.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 p-4"
-                >
-                  <div>
-                    <p className="font-medium text-gray-900">{o.name}</p>
-                    <p className="text-sm text-gray-600">
-                      {o.duration_minutes} دقیقه{" "}
-                      {o.gender_restriction === "male"
-                        ? "آقایان"
-                        : o.gender_restriction === "female"
-                        ? "بانوان"
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 ml-4">
-                    <p className="font-bold text-emerald-700">
-                      {formatTomans(o.price)}
-                    </p>
-                    <button
-                      onClick={() => handleSelectOffer(o)}
-                      className="mt-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-                    >
-                      انتخاب
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Rating Section */}
-          <div className="mt-6 border-t border-gray-200 pt-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
-              نظرات کاربران
-            </h3>
-            {venueRatings.length === 0 ? (
-              <p className="text-xs text-gray-600 mb-3">
-                هنوز نظری ثبت نشده.
-              </p>
-            ) : (
-              <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
-                {venueRatings.map((r) => (
-                  <div key={r.id} className="rounded-lg bg-gray-50 p-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-amber-600 text-xs">
-                        {"★".repeat(r.score)}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {r.user_name || r.user_phone}
-                      </span>
-                    </div>
-                    {r.comment && (
-                      <p className="text-xs text-gray-700">{r.comment}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="rounded-lg bg-gray-50 p-3">
-              <p className="mb-2 text-xs font-medium text-gray-700">
-                نظر شما:
-              </p>
-              <div className="mb-2 flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setRatingScore(s)}
-                    className={`text-lg ${s <= ratingScore ? "text-amber-500" : "text-gray-300"}`}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={ratingComment}
-                onChange={(e) => setRatingComment(e.target.value)}
-                placeholder="نظر خود را بنویسید (اختیاری)"
-                className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-emerald-500 focus:outline-none"
-                rows={2}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleSubmitRating}
-                loading={submittingRating}
-              >
-                {submittingRating ? "در حال ارسال..." : "ارسال نظر"}
-              </Button>
-            </div>
-          </div>
-        </Modal>
+      {sheet && (
+        <VenueSheet
+          venue={sheet}
+          remainingBudget={user?.remaining_budget ?? 0}
+          onClose={() => {
+            setSelected(null);
+            setDeepLink(null);
+          }}
+          onBooked={refreshUser}
+        />
       )}
     </PageShell>
   );
 }
 
-type DayGroup = { day: string; label: string; slots: GenderSlot[] };
+function VenueCard({ venue: v, distance, onOpen }: { venue: Venue; distance: number | null; onOpen: () => void }) {
+  const cat = categoryMeta(v.category_slug, v.category_name);
+  const prices = (v.offers || []).filter((o) => o.is_active !== false).map((o) => o.price);
+  const minPrice = prices.length ? Math.min(...prices) : null;
+  const gender = v.gender_for_now || v.gender_policy;
 
-function genderSlotGroups(slots: GenderSlot[]): DayGroup[] {
-  const dayMap: Record<GenderSlot["day_of_week"], string> = {
-    sat: "شنبه",
-    sun: "یکشنبه",
-    mon: "دوشنبه",
-    tue: "سه‌شنبه",
-    wed: "چهارشنبه",
-    thu: "پنجشنبه",
-    fri: "جمعه",
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex flex-col rounded-2xl border border-line bg-surface p-5 text-start shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-[var(--shadow-pop)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+    >
+      <div className="flex items-start gap-3">
+        <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl [&>svg]:h-6 [&>svg]:w-6", cat.tint)}>{cat.icon}</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-semibold text-ink-900 group-hover:text-brand-800">{v.name}</h3>
+          <p className="mt-0.5 flex items-center gap-1 truncate text-sm text-ink-500">
+            <MapPinIcon className="h-3.5 w-3.5 shrink-0" />
+            {[v.district, v.city === "Tehran" ? "تهران" : v.city].filter(Boolean).join("، ")}
+          </p>
+        </div>
+      </div>
+
+      {v.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-ink-500">{v.description}</p>}
+
+      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+        <Badge variant="neutral" size="sm">{cat.label}</Badge>
+        {gender && gender !== "mixed" && (
+          <Badge variant={gender === "female" ? "warning" : "info"} size="sm">
+            اکنون: {GENDER_LABELS[gender]}
+          </Badge>
+        )}
+        {distance != null && (
+          <Badge variant="brand" size="sm">
+            {formatNumber(Math.round(distance * 10) / 10)} کیلومتر
+          </Badge>
+        )}
+      </div>
+
+      <div className="min-h-4 flex-1" />
+      <div className="flex items-end justify-between gap-2 border-t border-line pt-4">
+        <div className="flex items-center gap-1 text-sm">
+          {v.avg_rating != null ? (
+            <>
+              <StarIconSolid className="h-4 w-4 text-amber-400" />
+              <span className="font-semibold text-ink-900">{formatNumber(v.avg_rating)}</span>
+              <span className="text-xs text-ink-500">({formatNumber(v.rating_count)})</span>
+            </>
+          ) : (
+            <span className="text-xs text-ink-400">بدون امتیاز</span>
+          )}
+        </div>
+        {minPrice != null && (
+          <p className="text-sm text-ink-500">
+            از <span className="tabular font-bold text-ink-900">{formatTomans(minPrice)}</span>
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+const DAYS: Record<GenderSlot["day_of_week"], string> = {
+  sat: "شنبه",
+  sun: "یکشنبه",
+  mon: "دوشنبه",
+  tue: "سه‌شنبه",
+  wed: "چهارشنبه",
+  thu: "پنجشنبه",
+  fri: "جمعه",
+};
+
+type Step = "offers" | "slots" | "done";
+
+function VenueSheet({
+  venue,
+  remainingBudget,
+  onClose,
+  onBooked,
+}: {
+  venue: Venue;
+  remainingBudget: number;
+  onClose: () => void;
+  onBooked: () => void;
+}) {
+  const toast = useToast();
+  const { data: offers, loading: offersLoading } = useApi<Offer[]>(`/catalog/venues/${venue.id}/offers/`);
+  const { data: ratings, refetch: refetchRatings } = useApi<VenueRating[]>(`/catalog/venues/${venue.id}/ratings/`);
+  const [step, setStep] = useState<Step>("offers");
+  const [offer, setOffer] = useState<Offer | null>(null);
+  const [slots, setSlots] = useState<TimeSlot[] | null>(null);
+  const [slotId, setSlotId] = useState<number | null>(null);
+  const [booking, setBooking] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [score, setScore] = useState(5);
+  const [comment, setComment] = useState("");
+  const [rating, setRating] = useState(false);
+
+  const cat = categoryMeta(venue.category_slug, venue.category_name);
+
+  const pickOffer = async (o: Offer) => {
+    setOffer(o);
+    setSlotId(null);
+    setSlots(null);
+    setStep("slots");
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await api.get<TimeSlot[]>(`/catalog/offer-timeslots/${o.id}/`, { params: { date: today, upcoming: 1 } });
+      setSlots(res.data);
+    } catch {
+      setSlots([]);
+    }
   };
-  const grouped: Partial<Record<GenderSlot["day_of_week"], GenderSlot[]>> = {};
-  slots.forEach((s) => {
-    if (!grouped[s.day_of_week]) grouped[s.day_of_week] = [];
-    grouped[s.day_of_week]!.push(s);
-  });
-  return (Object.keys(dayMap) as GenderSlot["day_of_week"][])
-    .filter((day) => grouped[day])
-    .map((day) => ({
-      day,
-      label: dayMap[day],
-      slots: grouped[day]!,
-    }));
+
+  const book = async () => {
+    if (!offer) return;
+    setBooking(true);
+    try {
+      const res = await api.post<{ check_in_code: string }>("/bookings/", {
+        offer_id: offer.id,
+        ...(slotId ? { timeslot_id: slotId } : {}),
+      });
+      setCode(res.data.check_in_code);
+      setStep("done");
+      onBooked();
+    } catch (err) {
+      toast.error("رزرو انجام نشد", apiErrorDetail(err, "لطفاً دوباره تلاش کنید."));
+    }
+    setBooking(false);
+  };
+
+  const submitRating = async () => {
+    setRating(true);
+    try {
+      await api.post(`/catalog/venues/${venue.id}/rate/`, { score, comment });
+      setComment("");
+      toast.success("نظر شما ثبت شد", "ممنون که تجربه‌تان را به اشتراک گذاشتید.");
+      refetchRatings();
+    } catch (err) {
+      toast.error("ثبت نظر ممکن نشد", apiErrorDetail(err));
+    }
+    setRating(false);
+  };
+
+  const slotGroups = (venue.gender_slots || []).reduce<Partial<Record<GenderSlot["day_of_week"], GenderSlot[]>>>((acc, s) => {
+    (acc[s.day_of_week] ??= []).push(s);
+    return acc;
+  }, {});
+
+  const insufficient = offer ? offer.price > remainingBudget : false;
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={
+        <span className="flex items-center gap-3">
+          <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl [&>svg]:h-5 [&>svg]:w-5", cat.tint)}>{cat.icon}</span>
+          <span className="min-w-0">
+            <span className="block truncate">{venue.name}</span>
+            <span className="block truncate text-xs font-normal text-ink-500">
+              {cat.label} · {venue.district || venue.city}
+            </span>
+          </span>
+        </span>
+      }
+    >
+      {step === "done" && offer ? (
+        <div className="flex flex-col items-center py-4 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+            <CheckCircleIcon className="h-9 w-9" />
+          </span>
+          <h3 className="mt-4 text-lg font-bold text-ink-900">رزرو شما ثبت شد</h3>
+          <p className="mt-1 text-sm text-ink-500">
+            {offer.name} · {formatTomans(offer.price)} از بودجه شما کسر شد.
+          </p>
+          {code && (
+            <div className="mt-6 w-full max-w-xs rounded-2xl border-2 border-dashed border-brand-300 bg-brand-50/50 p-5">
+              <p className="text-xs text-ink-500">کد ورود — هنگام مراجعه به پذیرش نشان دهید</p>
+              <p dir="ltr" className="mt-2 font-mono text-3xl font-bold tracking-[0.3em] text-brand-700">
+                {code}
+              </p>
+            </div>
+          )}
+          <div className="mt-6 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button asChild>
+              <Link href="/user/bookings">مشاهده رزروهای من</Link>
+            </Button>
+            <Button variant="outline" onClick={onClose}>
+              بستن
+            </Button>
+          </div>
+        </div>
+      ) : step === "slots" && offer ? (
+        <div>
+          <button onClick={() => setStep("offers")} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800">
+            <ArrowLeftIcon className="h-4 w-4 rotate-180" /> بازگشت به خدمات
+          </button>
+          <div className="mb-5 flex items-center justify-between rounded-2xl bg-canvas p-4">
+            <div>
+              <p className="font-semibold text-ink-900">{offer.name}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-sm text-ink-500">
+                <ClockIcon className="h-4 w-4" /> {formatNumber(offer.duration_minutes)} دقیقه
+              </p>
+            </div>
+            <p className="tabular text-lg font-bold text-brand-700">{formatTomans(offer.price)}</p>
+          </div>
+
+          {slots === null ? (
+            <LoadingState message="در حال دریافت سانس‌ها…" className="py-8" />
+          ) : slots.length === 0 ? (
+            <p className="rounded-xl bg-canvas px-4 py-3 text-sm text-ink-500">
+              این خدمت سانس مشخصی ندارد؛ کد ورود شما در ساعات کاری مجموعه معتبر است.
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 text-sm font-medium text-ink-700">انتخاب سانس</p>
+              <div className="scroll-thin grid max-h-64 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                {slots.map((s) => (
+                  <button
+                    key={s.id}
+                    disabled={!s.is_available}
+                    onClick={() => setSlotId(s.id === slotId ? null : s.id)}
+                    aria-pressed={s.id === slotId}
+                    className={cn(
+                      "rounded-xl border p-3 text-start text-sm transition",
+                      !s.is_available
+                        ? "cursor-not-allowed border-line bg-canvas text-ink-400"
+                        : s.id === slotId
+                          ? "border-brand-500 bg-brand-50 ring-2 ring-brand-500/20"
+                          : "border-line hover:border-brand-300",
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5 font-medium text-ink-900">
+                      <CalendarIcon className="h-4 w-4 text-ink-400" />
+                      {formatDate(s.date, { weekday: "short", month: "short", day: "numeric" })}
+                    </span>
+                    <span className="mt-1 flex items-center justify-between text-xs">
+                      <span className="tabular text-ink-700">
+                        {formatClock(s.start_time)} تا {formatClock(s.end_time)}
+                      </span>
+                      <span className={s.is_available ? "text-brand-700" : "text-red-500"}>
+                        {!s.is_available ? "تکمیل" : s.capacity === 0 ? "آزاد" : `${formatNumber(s.remaining)} جای خالی`}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {insufficient && (
+            <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">بودجه باقی‌مانده شما برای این خدمت کافی نیست.</p>
+          )}
+          <Button
+            className="mt-5 w-full"
+            size="lg"
+            onClick={book}
+            loading={booking}
+            disabled={insufficient || slots === null || (slots.length > 0 && !slotId)}
+          >
+            {slots && slots.length > 0 && !slotId ? "یک سانس انتخاب کنید" : `تایید و رزرو · ${formatTomans(offer.price)}`}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {venue.address && (
+            <p className="flex items-start gap-2 text-sm text-ink-500">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0" /> {venue.address}
+            </p>
+          )}
+          {venue.description && <p className="text-sm leading-7 text-ink-700">{venue.description}</p>}
+
+          {Object.keys(slotGroups).length > 0 ? (
+            <div className="rounded-2xl bg-canvas p-4">
+              <p className="mb-3 text-xs font-semibold text-ink-500">برنامه سانس‌های آقایان و بانوان</p>
+              <div className="space-y-2">
+                {(Object.keys(DAYS) as GenderSlot["day_of_week"][])
+                  .filter((d) => slotGroups[d])
+                  .map((d) => (
+                    <div key={d} className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="w-16 font-medium text-ink-700">{DAYS[d]}</span>
+                      {slotGroups[d]!.map((s) => (
+                        <Badge key={s.id} size="sm" variant={s.gender === "male" ? "info" : s.gender === "female" ? "warning" : "neutral"}>
+                          {formatClock(s.start_time)}–{formatClock(s.end_time)} {GENDER_LABELS[s.gender]}
+                        </Badge>
+                      ))}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ) : (
+            venue.gender_policy !== "mixed" && (
+              <Badge variant={venue.gender_policy === "female" ? "warning" : "info"}>ویژه {GENDER_LABELS[venue.gender_policy]}</Badge>
+            )
+          )}
+
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-ink-900">خدمات قابل رزرو</h3>
+            {offersLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
+            ) : !offers?.length ? (
+              <p className="rounded-xl bg-canvas px-4 py-6 text-center text-sm text-ink-500">در حال حاضر خدمتی برای رزرو فعال نیست.</p>
+            ) : (
+              <ul className="space-y-2">
+                {offers.map((o) => (
+                  <li key={o.id} className="flex items-center gap-4 rounded-2xl border border-line p-4 transition hover:border-brand-200">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-ink-900">{o.name}</p>
+                      <p className="mt-0.5 text-xs text-ink-500">
+                        {formatNumber(o.duration_minutes)} دقیقه
+                        {o.gender_restriction !== "mixed" && ` · ویژه ${GENDER_LABELS[o.gender_restriction]}`}
+                      </p>
+                      {o.description && <p className="mt-1 line-clamp-1 text-xs text-ink-500">{o.description}</p>}
+                    </div>
+                    <p className="tabular shrink-0 text-sm font-bold text-ink-900">{formatTomans(o.price)}</p>
+                    <Button size="sm" onClick={() => pickOffer(o)}>
+                      رزرو
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="border-t border-line pt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-ink-900">نظرات همکاران</h3>
+              {venue.avg_rating != null && (
+                <span className="flex items-center gap-1 text-sm">
+                  <StarIconSolid className="h-4 w-4 text-amber-400" />
+                  <b>{formatNumber(venue.avg_rating)}</b>
+                  <span className="text-xs text-ink-500">از {formatNumber(venue.rating_count)} نظر</span>
+                </span>
+              )}
+            </div>
+            {!ratings?.length ? (
+              <p className="mb-4 text-sm text-ink-500">هنوز نظری ثبت نشده است.</p>
+            ) : (
+              <ul className="scroll-thin mb-4 max-h-48 space-y-2 overflow-y-auto">
+                {ratings.map((r) => (
+                  <li key={r.id} className="rounded-xl bg-canvas p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-ink-700">{r.user_name || "کاربر باجیمو"}</span>
+                      <span className="flex" aria-label={`${r.score} از ۵`}>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <StarIconSolid key={i} className={cn("h-3.5 w-3.5", i < r.score ? "text-amber-400" : "text-gray-200")} />
+                        ))}
+                      </span>
+                    </div>
+                    {r.comment && <p className="mt-1.5 text-sm text-ink-700">{r.comment}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="rounded-2xl border border-line p-4">
+              <p className="mb-2 text-xs font-medium text-ink-500">امتیاز شما (پس از استفاده از خدمات)</p>
+              <div className="mb-3 flex gap-1" role="radiogroup" aria-label="امتیاز">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button key={s} role="radio" aria-checked={s === score} onClick={() => setScore(s)} className="p-0.5" aria-label={`${s} ستاره`}>
+                    <StarIconSolid className={cn("h-6 w-6 transition", s <= score ? "text-amber-400" : "text-gray-200 hover:text-amber-200")} />
+                  </button>
+                ))}
+              </div>
+              <Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="تجربه‌تان را بنویسید (اختیاری)" rows={2} />
+              <div className="mt-3 flex justify-end">
+                <Button variant="secondary" size="sm" onClick={submitRating} loading={rating}>
+                  ثبت نظر
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+    </Modal>
+  );
 }

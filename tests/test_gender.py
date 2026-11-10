@@ -1,10 +1,12 @@
 """
 Tests for gender-based venue filtering and booking validation.
 """
+from datetime import time
+
 import pytest
-from datetime import date, time
-from catalog.models import Venue, VenueGenderSlot, VenueCompanyAccess, Offer
+
 from billing.services import reserve_booking
+from catalog.models import Offer, Venue, VenueCompanyAccess, VenueGenderSlot
 
 
 class TestGenderFiltering:
@@ -18,8 +20,9 @@ class TestGenderFiltering:
         assert booking.status == "paid"
 
     def test_female_employee_rejected_at_male_venue(self, female_employee, male_only_venue, company):
+        from rest_framework.test import APIRequestFactory
+
         from bookings.serializers import BookingCreateSerializer
-        from rest_framework.test import APIRequestFactory, force_authenticate
         VenueCompanyAccess.objects.create(venue=male_only_venue, company=company)
         offer = Offer.objects.create(
             venue=male_only_venue, name="gym", price=500_000,
@@ -34,8 +37,9 @@ class TestGenderFiltering:
         assert "بانوان" in str(exc_info.value) or "آقایان" in str(exc_info.value)
 
     def test_male_employee_rejected_at_female_venue(self, male_employee, female_only_venue, company):
-        from bookings.serializers import BookingCreateSerializer
         from rest_framework.test import APIRequestFactory
+
+        from bookings.serializers import BookingCreateSerializer
         VenueCompanyAccess.objects.create(venue=female_only_venue, company=company)
         offer = Offer.objects.create(
             venue=female_only_venue, name="gym", price=500_000,

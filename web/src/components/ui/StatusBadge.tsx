@@ -1,8 +1,21 @@
-import { Badge, BadgeProps } from "./Badge";
+import { Badge, BadgeVariant } from "./Badge";
 
-export type BookingStatusVariant =
-  | "reserved" | "paid" | "checked_in" | "completed" | "cancelled" | "expired"
-  | "pending" | "processing" | BadgeProps["variant"];
+const map: Record<string, [BadgeVariant, string]> = {
+  reserved: ["info", "رزرو شده"],
+  paid: ["info", "پرداخت شده"],
+  pending: ["warning", "در انتظار"],
+  processing: ["info", "در حال پردازش"],
+  checked_in: ["success", "ورود ثبت شد"],
+  checkedin: ["success", "ورود ثبت شد"],
+  completed: ["neutral", "انجام شده"],
+  cancelled: ["error", "لغو شده"],
+  expired: ["warning", "منقضی شده"],
+  active: ["success", "فعال"],
+  inactive: ["neutral", "غیرفعال"],
+  suspended: ["error", "تعلیق / رد شده"],
+  draft: ["neutral", "پیش‌نویس"],
+  failed: ["error", "ناموفق"],
+};
 
 export interface StatusBadgeProps {
   status: string;
@@ -11,44 +24,11 @@ export interface StatusBadgeProps {
   className?: string;
 }
 
-const variantMap: Record<string, BadgeProps["variant"]> = {
-  reserved: "info",
-  paid: "info",
-  pending: "warning",
-  processing: "info",
-  checked_in: "success",
-  checkedin: "success",
-  completed: "neutral",
-  cancelled: "error",
-  expired: "warning",
-  active: "success",
-  suspended: "error",
-  draft: "neutral",
-  failed: "error",
-};
-
-const labelMap: Record<string, string> = {
-  reserved: "رزرو شده",
-  paid: "پرداخت شده",
-  pending: "در انتظار",
-  processing: "در حال پردازش",
-  checked_in: "ورود تایید شده",
-  checkedin: "ورود تایید شده",
-  completed: "تکمیل شده",
-  cancelled: "لغو شده",
-  expired: "منقضی شده",
-  active: "فعال",
-  suspended: "غیرفعال",
-  draft: "پیش‌نویس",
-  failed: "ناموفق",
-};
-
-export const StatusBadge = ({ status, label, size = "sm" }: StatusBadgeProps) => {
-  const variant = variantMap[status] || "neutral";
-  const resolvedLabel = label ?? labelMap[status] ?? status;
+export function StatusBadge({ status, label, size = "sm", className }: StatusBadgeProps) {
+  const [variant, fallback] = map[status] ?? ["neutral", status];
   return (
-    <Badge variant={variant} size={size}>
-      {resolvedLabel}
+    <Badge variant={variant} size={size} dot className={className}>
+      {label ?? fallback}
     </Badge>
   );
-};
+}

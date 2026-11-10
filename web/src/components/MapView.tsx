@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef } from "react";
-import { Venue } from "@/lib/types";
-import { getLeaflet, LMap, LMarker, LatLngExpression } from "@/lib/leaflet";
+import { useEffect, useRef, useState } from "react";
+import type { Venue } from "@/lib/types";
+import { loadLeaflet, LMap, LMarker, pinHtml, TEHRAN, TILE_ATTRIBUTION, TILE_URL } from "@/lib/leaflet";
 
 interface Props {
   venues: Venue[];
@@ -10,105 +10,67 @@ interface Props {
 }
 
 export default function MapView({ venues, userLocation, onSelect }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const leafletMap = useRef<LMap | null>(null);
-  const markersRef = useRef<LMarker[]>([]);
-  const userLocationRef = useRef(userLocation);
+  const el = useRef<HTMLDivElement>(null);
+  const map = useRef<LMap | null>(null);
+  const markers = useRef<LMarker[]>([]);
+  const onSelectRef = useRef(onSelect);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    userLocationRef.current = userLocation;
-  }, [userLocation]);
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
-  // Map init — runs once (deps empty), reads userLocation via ref.
+  // create the map once
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    const loadLeaflet = async () => {
-      if (!document.querySelector('link[href*="leaflet"]')) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
-
-      if (!getLeaflet()) {
-        await new Promise<void>((resolve) => {
-          const script = document.createElement("script");
-          script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-          script.onload = () => resolve();
-          document.head.appendChild(script);
-        });
-      }
-
-      const L = getLeaflet();
-      if (!L) return;
-
-      const loc = userLocationRef.current;
-      const center: LatLngExpression = loc
-        ? { lat: loc.lat, lng: loc.lng }
-        : { lat: 35.6892, lng: 51.389 };
-      const map = L.map(mapRef.current!).setView(center, loc ? 13 : 12);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
-        maxZoom: 19,
-      }).addTo(map);
-
-      leafletMap.current = map;
-      setTimeout(() => map.invalidateSize(), 100);
-    };
-
-    void loadLeaflet();
-
+    let cancelled = false;
+    loadLeaflet().then((L) => {
+      if (cancelled || !el.current || map.current) return;
+      map.current = L.map(el.current, { zoomControl: true }).setView(TEHRAN, 12);
+      L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map.current);
+      setTimeout(() => map.current?.invalidateSize(), 100);
+      setReady(true);
+    });
     return () => {
-      if (leafletMap.current) {
-        leafletMap.current.remove();
-        leafletMap.current = null;
-      }
+      cancelled = true;
+      map.current?.remove();
+      map.current = null;
     };
   }, []);
 
-  // Update markers / recenter when venues or location change.
+  // sync markers whenever data changes (after the map exists)
   useEffect(() => {
-    const map = leafletMap.current;
-    const L = getLeaflet();
-    if (!map || !L) return;
+    if (!ready || !map.current) return;
+    let cancelled = false;
+    loadLeaflet().then((L) => {
+      const m = map.current;
+      if (cancelled || !m) return;
+      markers.current.forEach((mk) => mk.remove());
+      markers.current = [];
 
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    if (userLocation) {
-      const el = L.divIcon({
-        className: "",
-        html: '<div style="width:20px;height:20px;background:#3b82f6;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+      const points: [number, number][] = [];
+      venues.forEach((v) => {
+        if (v.lat == null || v.lng == null) return;
+        const icon = L.divIcon({ className: "", html: pinHtml("#059673", "●", 30), iconSize: [30, 30], iconAnchor: [15, 15] });
+        const mk = L.marker([v.lat, v.lng], { icon, title: v.name }).addTo(m);
+        mk.on("click", () => onSelectRef.current(v));
+        markers.current.push(mk);
+        points.push([v.lat, v.lng]);
       });
-      const marker = L.marker(
-        { lat: userLocation.lat, lng: userLocation.lng },
-        { icon: el }
-      ).addTo(map);
-      markersRef.current.push(marker);
-      map.flyTo({ lat: userLocation.lat, lng: userLocation.lng }, 13);
-    }
 
-    venues.forEach((v) => {
-      if (!v.lat || !v.lng) return;
-      const el = L.divIcon({
-        className: "",
-        html: '<div style="width:32px;height:32px;background:#059669;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:bold;">G</div>',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-      const marker = L.marker({ lat: v.lat, lng: v.lng }, { icon: el }).addTo(map);
-      marker.on("click", () => onSelect(v));
-      markersRef.current.push(marker);
+      if (userLocation) {
+        const icon = L.divIcon({ className: "", html: pinHtml("#2563eb", "", 18), iconSize: [18, 18], iconAnchor: [9, 9] });
+        markers.current.push(L.marker([userLocation.lat, userLocation.lng], { icon, title: "موقعیت شما" }).addTo(m));
+        m.setView([userLocation.lat, userLocation.lng], 13);
+      } else if (points.length > 1) {
+        m.fitBounds(points, { padding: [40, 40], maxZoom: 14 });
+      } else if (points.length === 1) {
+        m.setView(points[0], 14);
+      }
     });
-  }, [venues, userLocation, onSelect]);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, venues, userLocation]);
 
-  return (
-    <div className="relative h-full w-full">
-      <div ref={mapRef} className="h-full w-full" />
-    </div>
-  );
+  return <div ref={el} className="h-full w-full" />;
 }

@@ -1,62 +1,55 @@
 "use client";
 import { useAuth } from "@/lib/auth";
-import { PageShell } from "@/components/PageShell";
-import { Card, LoadingState, ErrorState } from "@/components/ui";
-import { formatTomans } from "@/lib/format";
 import { useApi } from "@/lib/useApi";
-import { CompanyInfo } from "@/lib/types";
+import { PageShell } from "@/components/PageShell";
+import { Card, DetailRow, EmptyState, ErrorState, LoadingState, StatCard, StatusBadge } from "@/components/ui";
+import { BuildingIcon, UserGroupIcon, WalletIcon } from "@/components/icons";
+import { formatDate, formatNumber, formatTomans } from "@/lib/format";
+import type { CompanyInfo } from "@/lib/types";
 
 export default function CompanyInfoPage() {
   const { user } = useAuth();
-  const { data: company, loading, error, refetch } = useApi<CompanyInfo>(
-    user ? "/catalog/company-info/" : null
-  );
-
-  if (!user) return null;
+  const { data: company, loading, error, refetch } = useApi<CompanyInfo & { status?: string }>(user ? "/catalog/company-info/" : null);
 
   return (
-    <PageShell title="شرکت من">
+    <PageShell roles={["user"]} title="شرکت من" subtitle="اطلاعات سازمانی که بودجه رفاهی شما را تأمین می‌کند.">
       {loading ? (
-        <LoadingState message="در حال بارگذاری..." />
-      ) : error ? (
-        <ErrorState onRetry={refetch} />
-      ) : !company ? (
-        <Card className="p-8 text-center">
-          <p className="text-gray-600">اطلاعات شرکت یافت نشد.</p>
+        <LoadingState />
+      ) : error || !company ? (
+        <Card>
+          {error && (error as { message?: string }).message?.includes("404") ? (
+            <EmptyState icon={<BuildingIcon />} title="به شرکتی متصل نیستید" description="برای دریافت بودجه، مدیر منابع انسانی باید شما را به شرکت اضافه کند." />
+          ) : error ? (
+            <ErrorState onRetry={refetch} />
+          ) : (
+            <EmptyState icon={<BuildingIcon />} title="اطلاعات شرکت یافت نشد" />
+          )}
         </Card>
       ) : (
-        <Card className="p-6 space-y-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">نام شرکت</span>
-            <span className="font-medium text-gray-900">{company.name}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">تعداد کارمندان</span>
-            <span className="font-medium text-gray-900">
-              {company.employee_count} نفر
+        <div className="space-y-6">
+          <Card p="lg" className="flex items-center gap-4">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <BuildingIcon className="h-7 w-7" />
             </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-lg font-bold text-ink-900">{company.name}</h2>
+              <p className="text-sm text-ink-500">عضو باجیمو از {formatDate(company.created_at)}</p>
+            </div>
+            <StatusBadge status={company.is_active ? "active" : "inactive"} size="md" />
+          </Card>
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard label="همکاران روی باجیمو" value={`${formatNumber(company.employee_count)} نفر`} icon={<UserGroupIcon />} tone="sky" />
+            <StatCard label="بودجه پیش‌فرض سالانه" value={formatTomans(company.default_annual_budget)} icon={<WalletIcon />} />
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">بودجه سالانه پیش‌فرض</span>
-            <span className="font-medium text-emerald-700">
-              {formatTomans(company.default_annual_budget)}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">وضعیت</span>
-            <span
-              className={`font-medium ${company.is_active ? "text-emerald-700" : "text-red-600"}`}
-            >
-              {company.is_active ? "فعال" : "غیرفعال"}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">تاریخ عضویت</span>
-            <span className="font-medium text-gray-900">
-              {new Date(company.created_at).toLocaleDateString("fa-IR")}
-            </span>
-          </div>
-        </Card>
+          <Card>
+            <dl className="divide-y divide-line">
+              <DetailRow label="بودجه سالانه شما">{formatTomans(user?.annual_budget)}</DetailRow>
+              <DetailRow label="باقی‌مانده">
+                <span className="text-brand-700">{formatTomans(user?.remaining_budget)}</span>
+              </DetailRow>
+            </dl>
+          </Card>
+        </div>
       )}
     </PageShell>
   );

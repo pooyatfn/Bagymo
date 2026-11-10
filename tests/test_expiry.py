@@ -1,14 +1,15 @@
 """
 Tests for auto-expiry of past bookings.
 """
-import pytest
 from datetime import timedelta
+
 from django.utils import timezone
+
+from accounts.models import User
+from billing.models import BudgetLedger
+from billing.services import reserve_booking
 from bookings.models import Booking
 from bookings.views import _expire_past_bookings
-from billing.services import reserve_booking
-from billing.models import BudgetLedger
-from accounts.models import User
 
 
 class TestAutoExpiry:

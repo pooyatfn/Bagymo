@@ -1,11 +1,12 @@
 """
 pytest fixtures for bagymo test suite.
 """
-import pytest
 from datetime import date, time
+
+import pytest
+
 from accounts.models import User
-from catalog.models import Category, Company, Venue, Offer, VenueCompanyAccess, VenueGenderSlot, TimeSlot
-from billing.services import commission_split, reserve_booking, InsufficientBudget
+from catalog.models import Category, Company, Offer, TimeSlot, Venue
 
 
 @pytest.fixture

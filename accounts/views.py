@@ -1,22 +1,31 @@
 """
-OTP request & verify. Uses Redis-backed cache + Kavenegar (Iran).
-Fallback: if KAVENEGAR_API_KEY empty (dev), codes are printed to stdout.
+Auth views: OTP request/verify (Kavenegar SMS), email+password login, profile.
+In dev (no KAVENEGAR_API_KEY) OTP codes are printed to the server console.
 """
-import random
+import secrets
 
-from django.core.cache import cache
 from django.conf import settings
-
-from rest_framework import status, generics, permissions
+from django.core.cache import cache
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import OTPRequestSerializer, OTPVerifySerializer, UserSerializer, ProfileUpdateSerializer, EmailLoginSerializer
+from companies.views import PHONE_RE, normalize_phone
+
 from .models import User
+from .serializers import (
+    EmailLoginSerializer,
+    OTPRequestSerializer,
+    OTPVerifySerializer,
+    ProfileUpdateSerializer,
+    UserSerializer,
+)
 from .tokens import issue_tokens
 
-
 OTP_TTL_SECONDS = 300
+OTP_RESEND_SECONDS = 60
+OTP_MAX_ATTEMPTS = 5
+PENDING_COMPANY_MSG = "سازمان شما هنوز توسط باجیمو تأیید نشده است."
 
 
 class OTPRequestView(generics.GenericAPIView):
@@ -26,22 +35,27 @@ class OTPRequestView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         ser = self.get_serializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        phone = ser.validated_data["phone_number"].strip()
-        code = f"{random.randint(100000, 999999)}"
-        cache.set(f"otp:{phone}", code, timeout=OTP_TTL_SECONDS)
+        phone = normalize_phone(ser.validated_data["phone_number"])
+        if not PHONE_RE.match(phone):
+            return Response({"detail": "شماره موبایل نامعتبر است."}, status=status.HTTP_400_BAD_REQUEST)
+        # one code per minute per number
+        if not cache.add(f"otp-cooldown:{phone}", 1, timeout=OTP_RESEND_SECONDS):
+            return Response({"detail": "کد قبلاً ارسال شده؛ کمی بعد دوباره تلاش کنید."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        # In dev without gateway key, print code (flush for reliable capture)
+        code = f"{secrets.randbelow(900000) + 100000}"
+        cache.set(f"otp:{phone}", code, timeout=OTP_TTL_SECONDS)
+        cache.delete(f"otp-attempts:{phone}")
+
         if not settings.KAVENEGAR_API_KEY:
             print(f"[OTP] dev code for {phone}: {code}", flush=True)
-            return Response({"detail": "OTP sent (dev code printed)."}, status=status.HTTP_200_OK)
+            return Response({"detail": "کد تایید ارسال شد (حالت توسعه: در کنسول سرور)."})
 
-        try:
-            from core.sms import send_otp_sms
-            send_otp_sms(phone, code)
-        except Exception as exc:  # noqa: BLE001
-            print(f"[OTP] SMS failed: {exc}")
-            # still proceed in dev-like fallback for local
-        return Response({"detail": "OTP sent."}, status=status.HTTP_200_OK)
+        from core.sms import send_otp_sms
+
+        if not send_otp_sms(phone, code):
+            cache.delete(f"otp-cooldown:{phone}")
+            return Response({"detail": "ارسال پیامک ناموفق بود."}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"detail": "کد تایید ارسال شد."})
 
 
 class OTPVerifyView(APIView):
@@ -50,12 +64,15 @@ class OTPVerifyView(APIView):
     def post(self, request, *args, **kwargs):
         ser = OTPVerifySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        phone = ser.validated_data["phone_number"].strip()
+        phone = normalize_phone(ser.validated_data["phone_number"])
         code = ser.validated_data["code"].strip()
+        attempts_key = f"otp-attempts:{phone}"
+        attempts = cache.get(attempts_key, 0)
         expected = cache.get(f"otp:{phone}")
-        if not expected or expected != code:
-            return Response({"detail": "Invalid or expired code."}, status=status.HTTP_400_BAD_REQUEST)
-        cache.delete(f"otp:{phone}")
+        if not expected or attempts >= OTP_MAX_ATTEMPTS or not secrets.compare_digest(expected, code):
+            cache.set(attempts_key, attempts + 1, timeout=OTP_TTL_SECONDS)
+            return Response({"detail": "کد نادرست یا منقضی است."}, status=status.HTTP_400_BAD_REQUEST)
+        cache.delete_many([f"otp:{phone}", attempts_key])
 
         user = User.objects.filter(phone_number=phone).first()
         created = user is None
@@ -65,10 +82,9 @@ class OTPVerifyView(APIView):
         # Block company_admin login if their company is not yet approved
         if not created and user.role == "company_admin" and user.company:
             if user.company.status != "active":
-                return Response(
-                    {"detail": "Your company is pending admin approval."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                return Response({"detail": PENDING_COMPANY_MSG}, status=status.HTTP_403_FORBIDDEN)
+        if not user.is_active:
+            return Response({"detail": "حساب کاربری شما غیرفعال است."}, status=status.HTTP_403_FORBIDDEN)
 
         tokens = issue_tokens(user)
         return Response(
@@ -86,6 +102,12 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        if request.user.role == User.Role.USER:
+            # refund expired reservations first so the budget shown is current
+            from bookings.views import _expire_past_bookings
+
+            _expire_past_bookings()
+            request.user.refresh_from_db()
         return Response(UserSerializer(request.user).data)
 
     def patch(self, request):
@@ -102,11 +124,10 @@ class AdminUserDetailView(APIView):
 
     def get(self, request, user_id):
         if request.user.role != "admin":
-            return Response({"detail": "Not allowed"}, status=403)
-        try:
-            target = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({"detail": "User not found"}, status=404)
+            return Response({"detail": "دسترسی مجاز نیست."}, status=403)
+        target = User.objects.select_related("company").filter(id=user_id).first()
+        if target is None:
+            return Response({"detail": "کاربر پیدا نشد."}, status=404)
 
         from bookings.models import Booking
         bookings = Booking.objects.select_related("offer", "venue").filter(employee=target).order_by("-reserved_at")[:50]
@@ -140,21 +161,14 @@ class EmailLoginView(APIView):
         email = ser.validated_data["email"]
         password = ser.validated_data["password"]
 
-        user = User.objects.filter(email=email).first()
-        if user is None:
-            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
-        if not user.check_password(password):
-            return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None or not user.check_password(password):
+            return Response({"detail": "ایمیل یا رمز عبور نادرست است."}, status=status.HTTP_401_UNAUTHORIZED)
+        # company admins can sign in only after their company is approved
+        if user.role == "company_admin" and user.company and user.company.status != "active":
+            return Response({"detail": PENDING_COMPANY_MSG}, status=status.HTTP_403_FORBIDDEN)
         if not user.is_active:
-            return Response({"detail": "Account is not active."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Block company_admin login if their company is not yet approved
-        if user.role == "company_admin" and user.company:
-            if user.company.status != "active":
-                return Response(
-                    {"detail": "Your company is pending admin approval."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            return Response({"detail": "حساب کاربری شما غیرفعال است."}, status=status.HTTP_403_FORBIDDEN)
 
         tokens = issue_tokens(user)
         return Response({

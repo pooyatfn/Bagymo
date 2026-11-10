@@ -5,18 +5,31 @@ Corporate wellness marketplace - Iran web-only.
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv  # noqa: E402
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
+
+def env_bool(name: str, default: bool) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
+def env_list(name: str, default: str) -> list[str]:
+    return [v.strip() for v in os.getenv(name, default).split(",") if v.strip()]
+
+
 ENV = os.getenv("ENV", "dev")
-DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+DEBUG = env_bool("DEBUG", True)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
+if not DEBUG and SECRET_KEY.startswith("dev-"):
+    raise ImproperlyConfigured("Set a real SECRET_KEY when DEBUG is off.")
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*" if DEBUG else "localhost")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -37,7 +50,6 @@ INSTALLED_APPS = [
     "catalog",
     "bookings",
     "billing",
-    "maps",
     "api",
     "companies",
 ]
@@ -51,7 +63,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "core.middleware.RoleMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -84,41 +95,46 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "bagymo")
 POSTGRES_USER = os.getenv("POSTGRES_USER", "bagymo")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "bagymo123")
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "HOST": POSTGRES_HOST,
-        "PORT": POSTGRES_PORT,
-        "NAME": POSTGRES_DB,
-        "USER": POSTGRES_USER,
-        "PASSWORD": POSTGRES_PASSWORD,
-        "CONN_MAX_AGE": 60,
+if os.getenv("DB_ENGINE", "postgres").lower() == "sqlite":
+    # quick local runs without Postgres: DB_ENGINE=sqlite
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "HOST": POSTGRES_HOST,
+            "PORT": POSTGRES_PORT,
+            "NAME": POSTGRES_DB,
+            "USER": POSTGRES_USER,
+            "PASSWORD": POSTGRES_PASSWORD,
+            "CONN_MAX_AGE": 60,
+        }
     }
-}
 
 # Cache + Celery -------------------------------------------------------
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        }
     }
-}
+else:
+    # REDIS_URL= (empty) → in-process cache, fine for a single dev server
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-# In dev (no Redis running) execute celery tasks synchronously when .delay() is called.
-CELERY_TASK_ALWAYS_EAGER = True
+# Run tasks inline unless a worker is configured (CELERY_EAGER=false in production).
+CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_EAGER", True)
+CELERY_TIMEZONE = "Asia/Tehran"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 
 # DRF + auth -----------------------------------------------------------
-from datetime import timedelta  # noqa: E402
-
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -142,7 +158,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Internationalisation ------------------------------------------------
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "fa-ir"  # Persian validation messages from Django/DRF
 TIME_ZONE = "Asia/Tehran"
 USE_I18N = True
 USE_TZ = True
@@ -150,7 +166,7 @@ USE_TZ = True
 # Static + media ------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "config" / "static"]
+STATICFILES_DIRS = [p for p in [BASE_DIR / "config" / "static"] if p.exists()]
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -163,7 +179,23 @@ ZARINPAL_MERCHANT_ID = os.getenv("ZARINPAL_MERCHANT_ID", "")
 IDPAY_PIN = os.getenv("IDPAY_PIN", "")
 IDPAY_USEDOMAIN = os.getenv("IDPAY_USEDOMAIN", "false").lower() == "true"
 NESHAN_API_KEY = os.getenv("NESHAN_API_KEY", "")
-NESHAN_SEARCH_BASE_URL = os.getenv("NESHAN_SEARCH_BASE_URL", "https://api.neshan.net/")
+NESHAN_SEARCH_BASE_URL = os.getenv("NESHAN_SEARCH_BASE_URL", "https://api.neshan.org/")
+
+# Nightly venue import from Neshan (celery beat → catalog.sync_venues)
+VENUE_SYNC_ENABLED = env_bool("VENUE_SYNC_ENABLED", True)
+VENUE_SYNC_CITIES = env_list("VENUE_SYNC_CITIES", "tehran")
+VENUE_SYNC_GRID = int(os.getenv("VENUE_SYNC_GRID", "3"))
+VENUE_SYNC_SPACING_KM = float(os.getenv("VENUE_SYNC_SPACING_KM", "8"))
+VENUE_SYNC_HOUR = int(os.getenv("VENUE_SYNC_HOUR", "3"))  # Tehran time
+
+CELERY_BEAT_SCHEDULE = {}
+if VENUE_SYNC_ENABLED:
+    from celery.schedules import crontab
+
+    CELERY_BEAT_SCHEDULE["sync-venues-nightly"] = {
+        "task": "catalog.sync_venues",
+        "schedule": crontab(hour=VENUE_SYNC_HOUR, minute=17),
+    }
 
 # Business defaults (commission + budget) -----------------------------
 DEFAULT_COMMISSION_PCT_EMP = 0.03
@@ -173,4 +205,12 @@ MIN_PAYOUT_TOMAN = 100_000
 
 # CORS (dev: allow localhost) -------------------------------------------
 CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+
+# Production hardening --------------------------------------------------
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "")

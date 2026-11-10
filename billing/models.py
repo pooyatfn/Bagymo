@@ -1,11 +1,10 @@
 """
 Billing: employee budget ledger entries + settlement/invoice aggregates.
 """
-from django.db import models
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db import models
 
-from catalog.models import Venue, Company  # noqa: E402 (avoids app-load cycle)
+from catalog.models import Company, Venue  # noqa: E402 (avoids app-load cycle)
 
 
 class BudgetLedger(models.Model):

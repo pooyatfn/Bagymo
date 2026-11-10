@@ -2,9 +2,11 @@
 Manual budget reset trigger for employees whose fiscal year has rolled over.
 Usage:  python manage.py reset_budgets
 """
-from datetime import date, timedelta
+from datetime import date
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
+
 from accounts.models import User
 from billing.models import BudgetLedger
 

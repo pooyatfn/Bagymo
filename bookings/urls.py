@@ -1,6 +1,7 @@
 """Bookings API URLs."""
-from rest_framework import routers
 from django.urls import include, path
+from rest_framework import routers
+
 from .views import BookingViewSet
 
 router = routers.DefaultRouter()

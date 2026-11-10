@@ -1,6 +1,7 @@
 """Company HR API URLs."""
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework import routers
+
 from .views import EmployeeBudgetViewSet, company_dashboard, register_company
 
 router = routers.DefaultRouter()

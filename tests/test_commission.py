@@ -2,9 +2,10 @@
 Tests for the commission split and booking reservation flow.
 """
 import pytest
-from billing.services import commission_split, reserve_booking, InsufficientBudget
-from billing.models import BudgetLedger
+
 from accounts.models import User
+from billing.models import BudgetLedger
+from billing.services import InsufficientBudget, commission_split, reserve_booking
 
 
 class TestCommissionSplit:

@@ -1,82 +1,81 @@
-"use client";
 import Link from "next/link";
 import { Button } from "@/components/ui";
-import { SparklesIcon, MapPinIcon } from "../icons";
+import { BuildingIcon, StoreIcon, UserIcon } from "@/components/icons";
+
+const FLOW = [
+  { icon: <BuildingIcon />, who: "سازمان", text: "برای هر کارمند بودجه رفاهی تعیین می‌کند." },
+  { icon: <UserIcon />, who: "کارمند", text: "مجموعه و سانس را انتخاب و رزرو می‌کند و کد ورود می‌گیرد." },
+  { icon: <StoreIcon />, who: "مجموعه", text: "کد ورود مهمان را ثبت می‌کند و تسویه دوره‌ای می‌گیرد." },
+];
+
+/** How a booking moves between the three sides. Purely explanatory: no account data, no sample numbers. */
+function FlowCard() {
+  return (
+    <div className="relative mx-auto w-full max-w-md xl:max-w-lg">
+      <div className="absolute -inset-6 rounded-[2.5rem] bg-gradient-to-br from-brand-200/50 to-sky-200/40 blur-2xl" aria-hidden="true" />
+      <div className="relative rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow-pop)] sm:p-8">
+        <p className="text-sm font-semibold text-brand-700">باجیمو چطور کار می‌کند؟</p>
+        <ol className="mt-6">
+          {FLOW.map((f, i) => (
+            <li key={f.who} className="relative flex gap-4 pb-7 last:pb-0">
+              {i < FLOW.length - 1 && <span className="absolute bottom-0 start-6 top-12 w-px -translate-x-1/2 bg-line rtl:translate-x-1/2" aria-hidden="true" />}
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 [&>svg]:h-6 [&>svg]:w-6">{f.icon}</span>
+              <div className="pt-0.5">
+                <p className="font-semibold text-ink-900">{f.who}</p>
+                <p className="mt-1 text-sm leading-7 text-ink-500">{f.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-7 flex flex-wrap gap-2 border-t border-line pt-5 text-xs text-ink-700">
+          {["بدون کارت هدیه", "بدون فاکتور کاغذی", "بازگشت خودکار مبلغ رزرو استفاده‌نشده"].map((t) => (
+            <span key={t} className="rounded-full bg-canvas px-3 py-1.5">
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50 via-white to-white">
-      <div className="absolute inset-0 -z-10">
-        <svg
-          className="absolute -top-32 -right-32 h-72 w-72 -rotate-15 opacity-15"
-          viewBox="0 0 100 100"
-          fill="none"
-        >
-          <circle cx="50" cy="50" r="40" fill="currentColor" color="#059669" />
-          <path d="M50 15a35 35 0 100 70 35 35 0 000-70z" fill="none" stroke="#059669" strokeWidth="2" />
-        </svg>
-        <svg
-          className="absolute -bottom-24 -left-24 h-56 w-56 opacity-10"
-          viewBox="0 0 100 100"
-          fill="none"
-        >
-          <rect x="20" y="20" width="60" height="60" rx="12" fill="#059669" />
-        </svg>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_theme(colors.emerald.100/40),transparent_60%)]" />
-      </div>
-
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 py-14 sm:py-20 md:py-24 sm:px-6 md:grid-cols-2">
-        <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-600/10">
-            <SparklesIcon className="h-4 w-4" />
-            <span>پلتفرم سلامت و فیتنس سازمانی</span>
-          </div>
-
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl leading-snug">
-            بودجه سلامت شرکتی شما،{" "}
-            <span className="text-emerald-700">به یک باشگاه، استخر یا سینما تبدیل می‌شود.</span>
+    <section className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60rem_30rem_at_80%_-10%,var(--color-brand-100),transparent),radial-gradient(40rem_24rem_at_0%_10%,#e0f2fe,transparent)]" />
+      <div className="site-container grid items-center gap-14 pb-24 pt-10 md:grid-cols-2 md:pt-16 xl:gap-24">
+        <div>
+          <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3.5 py-1.5 text-xs font-medium text-brand-800 shadow-sm ring-1 ring-brand-600/15">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500" /> پلتفرم بودجه رفاهی سازمانی
+          </span>
+          <h1 className="mt-6 text-4xl font-extrabold leading-[1.35] tracking-tight text-ink-900 sm:text-5xl sm:leading-[1.3] xl:text-6xl xl:leading-[1.3]">
+            بودجه رفاهی کارکنان را
+            <span className="block text-brand-700">به ورزش و تفریح تبدیل کنید.</span>
           </h1>
-
-          <p className="max-w-lg text-base text-gray-600">
-            باجیمو با ارائه بودجه سلامت برای کارمندان، دسترسی آسان به شبکه باشگاه‌های برتر، استخرها و سینماهای شهر را فراهم می‌کند. رزرو آنلاین، ورود QR و تسویه حساب شفاف — همه در یک پلتفرم.
+          <p className="mt-5 max-w-xl text-base leading-8 text-ink-500 xl:text-lg xl:leading-9">
+            سازمان بودجه هر نفر را تعیین می‌کند، کارمند از بین باشگاه‌ها، استخرها و سینماهای طرف قرارداد رزرو می‌کند و مجموعه با کد ورود
+            مهمان را می‌پذیرد. گزارش و تسویه‌حساب، خودکار و شفاف.
           </p>
-
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-            <Button variant="primary" size="lg" asChild>
-              <Link href="/login">ورود و شروع کنید</Link>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button asChild size="lg">
+              <Link href="/company/register">
+                <BuildingIcon className="h-5 w-5" /> ثبت سازمان
+              </Link>
             </Button>
-            <Button variant="secondary" size="lg" asChild>
-              <Link href="/venue/register" className="inline-flex items-center gap-2">
-                <MapPinIcon className="h-4 w-4" />
-                <span>ثبت باشگاه جدید</span>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/venue/register">
+                <StoreIcon className="h-5 w-5" /> ثبت مجموعه ورزشی
               </Link>
             </Button>
           </div>
-
+          <p className="mt-5 text-sm text-ink-500">
+            کارمند هستید؟{" "}
+            <Link href="/login" className="font-medium text-brand-700 hover:text-brand-800">
+              با شماره موبایل وارد شوید
+            </Link>
+          </p>
         </div>
-
-        <div className="relative hidden md:block">
-          <div className="relative mx-auto h-96 w-full max-w-md">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-2xl border-2 border-dashed border-emerald-200 bg-white p-6 shadow-xl w-72">
-              <p className="text-center text-xs text-gray-600 mb-2">پیش‌نمایش اپلیکیشن</p>
-              <div className="font-mono text-center text-xl font-medium text-emerald-700 tracking-[0.1em] py-4">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <span key={i} className="inline-block mx-1 px-2 py-1 bg-emerald-100 rounded">
-                    {i + 1}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-72 -z-10">
-              <svg viewBox="0 0 400 200" className="h-56 w-full opacity-40">
-                <rect x="40" y="40" width="320" height="120" rx="20" fill="none" stroke="#059669" strokeWidth="1.5" />
-                <circle cx="120" cy="90" r="6" fill="#059669" />
-                <circle cx="200" cy="90" r="6" fill="#059669" />
-                <circle cx="280" cy="90" r="6" fill="#059669" />
-              </svg>
-            </div>
-          </div>
-        </div>
+        <FlowCard />
       </div>
     </section>
   );

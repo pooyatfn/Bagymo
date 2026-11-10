@@ -1,16 +1,17 @@
 """
 Tests for booking cancel flow: success, expired rejection, budget cap.
 """
-import pytest
 from datetime import timedelta
+
+import pytest
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
-from bookings.models import Booking
-from bookings.views import BookingViewSet
+
+from accounts.models import User
 from billing.models import BudgetLedger
 from billing.services import reserve_booking
-from accounts.models import User
-from catalog.models import Offer, VenueCompanyAccess
+from bookings.models import Booking
+from bookings.views import BookingViewSet
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ class TestCancelBooking:
         request = rf.post(f"/api/bookings/{booking.id}/cancel/")
         force_authenticate(request, user=employee)
         view = BookingViewSet.as_view({"post": "cancel_booking"})
-        response = view(request, pk=booking.id)
+        view(request, pk=booking.id)
         booking.refresh_from_db()
         assert booking.status == Booking.Status.CANCELLED
         assert booking.cancelled_at is not None
@@ -50,7 +51,7 @@ class TestCancelBooking:
         request = rf.post(f"/api/bookings/{booking.id}/cancel/")
         force_authenticate(request, user=employee)
         view = BookingViewSet.as_view({"post": "cancel_booking"})
-        response = view(request, pk=booking.id)
+        view(request, pk=booking.id)
         entry = BudgetLedger.objects.filter(employee=employee, type="refund").first()
         assert entry is not None
         assert entry.amount == booking.price
@@ -90,7 +91,7 @@ class TestCancelBooking:
         request = rf.post(f"/api/bookings/{booking.id}/cancel/")
         force_authenticate(request, user=employee)
         view = BookingViewSet.as_view({"post": "cancel_booking"})
-        response = view(request, pk=booking.id)
+        view(request, pk=booking.id)
         emp = User.objects.get(pk=employee.pk)
         assert emp.remaining_budget == employee.annual_budget
 

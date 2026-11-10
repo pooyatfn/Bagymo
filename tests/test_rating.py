@@ -1,11 +1,12 @@
 """
 Tests for venue ratings and offer edit/delete.
 """
+
 import pytest
-from datetime import date, time
+
 from accounts.models import User
-from catalog.models import Venue, Offer, VenueRating
 from billing.services import reserve_booking
+from catalog.models import Offer, Venue, VenueRating
 
 
 @pytest.fixture
