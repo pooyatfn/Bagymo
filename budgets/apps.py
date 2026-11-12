@@ -1,4 +1,4 @@
-"""Default AppConfig; budget reset task registered in billing/tasks.py."""
+"""Default AppConfig."""
 from django.apps import AppConfig
 
 

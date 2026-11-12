@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     # third party
     "rest_framework",
     "corsheaders",
-    "django_celery_beat",
     "django_redis",
     # local
     "core",
@@ -111,7 +110,7 @@ else:
         }
     }
 
-# Cache + Celery -------------------------------------------------------
+# Cache -------------------------------------------------------
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
 if REDIS_URL:
     CACHES = {
@@ -124,15 +123,6 @@ if REDIS_URL:
 else:
     # REDIS_URL= (empty) → in-process cache, fine for a single dev server
     CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-# Run tasks inline unless a worker is configured (CELERY_EAGER=false in production).
-CELERY_TASK_ALWAYS_EAGER = env_bool("CELERY_EAGER", True)
-CELERY_TIMEZONE = "Asia/Tehran"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
 
 # DRF + auth -----------------------------------------------------------
 REST_FRAMEWORK = {
@@ -178,24 +168,6 @@ KAVENEGAR_SENDER = os.getenv("KAVENEGAR_SENDER", "")
 ZARINPAL_MERCHANT_ID = os.getenv("ZARINPAL_MERCHANT_ID", "")
 IDPAY_PIN = os.getenv("IDPAY_PIN", "")
 IDPAY_USEDOMAIN = os.getenv("IDPAY_USEDOMAIN", "false").lower() == "true"
-NESHAN_API_KEY = os.getenv("NESHAN_API_KEY", "")
-NESHAN_SEARCH_BASE_URL = os.getenv("NESHAN_SEARCH_BASE_URL", "https://api.neshan.org/")
-
-# Nightly venue import from Neshan (celery beat → catalog.sync_venues)
-VENUE_SYNC_ENABLED = env_bool("VENUE_SYNC_ENABLED", True)
-VENUE_SYNC_CITIES = env_list("VENUE_SYNC_CITIES", "tehran")
-VENUE_SYNC_GRID = int(os.getenv("VENUE_SYNC_GRID", "3"))
-VENUE_SYNC_SPACING_KM = float(os.getenv("VENUE_SYNC_SPACING_KM", "8"))
-VENUE_SYNC_HOUR = int(os.getenv("VENUE_SYNC_HOUR", "3"))  # Tehran time
-
-CELERY_BEAT_SCHEDULE = {}
-if VENUE_SYNC_ENABLED:
-    from celery.schedules import crontab
-
-    CELERY_BEAT_SCHEDULE["sync-venues-nightly"] = {
-        "task": "catalog.sync_venues",
-        "schedule": crontab(hour=VENUE_SYNC_HOUR, minute=17),
-    }
 
 # Business defaults (commission + budget) -----------------------------
 DEFAULT_COMMISSION_PCT_EMP = 0.03

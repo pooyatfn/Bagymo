@@ -219,6 +219,6 @@ def mark_checked_in(booking, code, staff_code, request):
     send_checkin_confirmation(booking.employee.phone_number, booking.venue.name)
 
     # queue settlement aggregation
-    from billing.tasks import aggregate_venue_settlement
-    aggregate_venue_settlement.delay(booking.venue_id, timezone.localdate().isoformat())
+    from billing.settlements import aggregate_venue_settlement
+    aggregate_venue_settlement(booking.venue_id, timezone.localdate().isoformat())
     return True, f"ورود ثبت شد: {booking.offer.name}"

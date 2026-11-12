@@ -57,7 +57,7 @@ export default function LocationPicker({ onPick, initialCenter = TEHRAN, buttonT
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-      <div ref={el} className="h-[320px] w-full" />
+      <div ref={el} className="isolate h-[320px] w-full" />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2.5">
         <p className="text-xs text-ink-500" dir="ltr">
           {picked ? persianNumbers(`${picked.lat.toFixed(5)}, ${picked.lng.toFixed(5)}`) : "روی نقشه کلیک کنید"}

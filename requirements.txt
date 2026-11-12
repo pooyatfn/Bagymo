@@ -4,8 +4,6 @@ djangorestframework-simplejwt[crypto]
 psycopg2-binary
 redis
 django-redis
-celery
-django-celery-beat
 python-dotenv
 kavenegar
 requests

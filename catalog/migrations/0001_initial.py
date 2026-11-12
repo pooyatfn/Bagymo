@@ -140,23 +140,6 @@ class Migration(migrations.Migration):
                 ("is_verified", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "source",
-                    models.CharField(
-                        choices=[
-                            ("manual", "Manual / sign-up"),
-                            ("neshan", "Neshan import"),
-                        ],
-                        db_index=True,
-                        default="manual",
-                        max_length=16,
-                    ),
-                ),
-                (
-                    "external_id",
-                    models.CharField(blank=True, max_length=64, null=True, unique=True),
-                ),
-                ("synced_at", models.DateTimeField(blank=True, null=True)),
-                (
                     "category",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.PROTECT,

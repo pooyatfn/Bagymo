@@ -33,27 +33,6 @@ export const features = [
   },
 ];
 
-export const howItWorksSteps = [
-  {
-    step: 1,
-    title: "سازمان بودجه تعیین می‌کند",
-    description: "سازمان ثبت‌نام می‌کند و برای کارکنان بودجه رفاهی سالانه تعریف می‌کند.",
-    icon: "check",
-  },
-  {
-    step: 2,
-    title: "کارمند مجموعه را انتخاب می‌کند",
-    description: "کارمند با شماره موبایل وارد می‌شود، از فهرست یا نقشه مجموعه و سانس مناسب را پیدا و رزرو می‌کند.",
-    icon: "map",
-  },
-  {
-    step: 3,
-    title: "ورود با کد و تسویه خودکار",
-    description: "در مجموعه کد ورود را نشان می‌دهد؛ مبلغ از بودجه کسر و در تسویه دوره‌ای مجموعه لحاظ می‌شود.",
-    icon: "clock",
-  },
-];
-
 /** The three sides of the marketplace (replaces the old placeholder testimonials). */
 export const audiences = [
   {

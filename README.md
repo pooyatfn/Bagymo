@@ -14,7 +14,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Celery](https://img.shields.io/badge/Celery-Redis-37814A?logo=celery&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-cache-DC382D?logo=redis&logoColor=white)
 
 <img src="docs/screenshots/landing.png" alt="صفحه اصلی باجیمو" width="100%">
 
@@ -26,7 +26,7 @@
 - [پنل‌ها](#پنلها)
 - [شروع سریع با Docker](#شروع-سریع-با-docker)
 - [اجرای محلی](#اجرای-محلی)
-- [به‌روزرسانی مکان‌ها از نقشه نشان](#بهروزرسانی-مکانها-از-نقشه-نشان)
+- [افزودن مجموعه‌ها و سازمان‌ها](#افزودن-مجموعهها-و-سازمانها)
 - [صفحه‌های عمومی سایت](#صفحههای-عمومی-سایت)
 - [ساختار](#ساختار)
 - [کیفیت کد](#کیفیت-کد)
@@ -44,6 +44,10 @@
 | کشف مجموعه‌ها (فهرست / نقشه) | رزروهای من |
 | :---: | :---: |
 | <img src="docs/screenshots/employee-discover.png" alt="کشف مجموعه‌ها"> | <img src="docs/screenshots/employee-bookings.png" alt="رزروهای من"> |
+
+**نقشه:** کارمند می‌تواند مجموعه‌ها را روی نقشه ببیند و روی هر پین بزند تا مشخصات و خدمات را ببیند. مجموعه‌ها هم موقع ثبت‌نام، موقعیت خود را روی نقشه انتخاب می‌کنند.
+
+<img src="docs/screenshots/discover-map.png" alt="مجموعه‌ها روی نقشه" width="100%">
 
 ### پنل سازمان (منابع انسانی)
 
@@ -88,7 +92,7 @@
 
 ```bash
 cp .env.example .env
-docker compose up --build -d      # postgres, redis, backend, celery-worker, celery-beat, frontend
+docker compose up --build -d      # postgres, redis, backend, frontend
 docker compose exec backend python manage.py migrate
 docker compose exec backend python manage.py seed_bagymo   # داده نمونه
 ```
@@ -123,37 +127,26 @@ make run-web            # فرانت روی :3000
 | مدیر سازمان | موبایل `09120000010` |
 | مدیر مجموعه | موبایل `09120000081` |
 | مدیر پلتفرم | موبایل `09120000000` |
+| مدیر سازمان دوم / سوم | `09130000010` / `09130000020` (رمز `Admin12345`) |
 
-## به‌روزرسانی مکان‌ها از نقشه نشان
+داده نمونه: ۷۲ مجموعه فعال در پنج دسته (۶۲ در نقاط مختلف تهران و ۱۰ در کرج)، سه سازمان فعال با ۱۸ کارمند، حدود ۴۵ رزرو با سابقه یک‌ماهه، امتیاز و نظر، به‌علاوه ۴ مجموعه و ۲ سازمان در انتظار تأیید برای تست پنل ادمین.
 
-باشگاه‌ها، استخرها، سینماها، یوگا و مجموعه‌های ورزشی را از سرویس جستجوی نشان (Search API نسخه ۳) می‌گیرد. مکان‌های جدید با وضعیت «در انتظار تأیید» ثبت می‌شوند و در پنل مدیریت (بخش درخواست‌ها، با برچسب «از نقشه نشان») تأییدشان می‌کنید. اجرای دوباره مکان تکراری نمی‌سازد، فقط مکان‌های هنوز تأییدنشده را به‌روز می‌کند و مکان تأییدشده را هیچ‌وقت بازنویسی نمی‌کند.
+## افزودن مجموعه‌ها و سازمان‌ها
 
-```bash
-# در .env:  NESHAN_API_KEY=service.xxxxxxxx
-python manage.py sync_neshan_venues                       # تهران، همه دسته‌ها
-python manage.py sync_neshan_venues --city isfahan        # tehran, karaj, mashhad, isfahan, shiraz, tabriz, qom, ahvaz
-python manage.py sync_neshan_venues --category gym --category pool
-python manage.py sync_neshan_venues --dry-run             # فقط نمایش تغییرات
-```
+مکان‌ها از هیچ سرویس خارجی (نقشه، API پولی) گرفته نمی‌شوند. هر مجموعه یا سازمانی خودش درخواست می‌دهد و ادمین بررسی می‌کند:
 
-**کلید نشان:** در [پنل توسعه‌دهندگان نشان](https://platform.neshan.org/panel/api-key) یک کلید از نوع «سرویس‌ها» بسازید (با `service.` شروع می‌شود) و «دامنه‌های مجاز» آن را خالی بگذارید یا IP سرور را اضافه کنید. سرویس جستجو به‌طور پیش‌فرض در فهرست سرویس‌های کلید نیست و باید با ارسال تیکت (گروه «درخواست فعال‌سازی سرویس‌ها») از پشتیبانی نشان بخواهید فعالش کند.
+1. مجموعه از `/venue/register` و سازمان از `/company/register` ثبت‌نام می‌کند. وضعیت اولیه «در انتظار تأیید» است و تا تأیید، نه در فهرست دیده می‌شود و نه می‌تواند وارد شود.
+2. به ادمین‌های پلتفرم پیامک می‌رسد.
+3. ادمین در پنل مدیریت (بخش «درخواست‌ها») اطلاعات را می‌بیند و تأیید یا رد می‌کند.
+4. پس از تأیید، مجموعه در فهرست عمومی و برای کارکنان نمایش داده می‌شود.
 
-| خطا | معنی |
-| --- | --- |
-| 480 | کلید نامعتبر است |
-| 483 | نوع کلید اشتباه است (باید «سرویس‌ها» باشد، نه «نقشه وب») |
-| 484 | IP سرور در «دامنه‌های مجاز» کلید نیست |
-| 485 | سرویس جستجو روی کلید فعال نشده است |
+برای تست، `make seed` چند مجموعه و سازمان فعال و چند درخواست در انتظار تأیید می‌سازد.
 
-نشان فقط نام، نشانی، محله و مختصات می‌دهد؛ امتیاز و نظر ندارد. امتیازها و نظرها را کارکنان در خود باجیمو ثبت می‌کنند.
-
-**اجرای خودکار (Celery):** سرویس‌های `celery-worker` و `celery-beat` در `docker-compose.yml` هر شب ساعت ۳:۱۷ (وقت تهران) همگام‌سازی را برای `VENUE_SYNC_CITIES` اجرا می‌کنند. تنظیمات در `.env`: `VENUE_SYNC_CITIES=tehran,karaj`، `VENUE_SYNC_HOUR`، `VENUE_SYNC_GRID`، `VENUE_SYNC_ENABLED`. زمان‌بندی در ادمین جنگو (Periodic tasks) هم قابل ویرایش است.
-
-بدون Docker:
+کارهای دوره‌ای را با دستور دستی (یا cron سیستم) اجرا کنید:
 
 ```bash
-CELERY_EAGER=false celery -A config worker -l info
-CELERY_EAGER=false celery -A config beat -l info
+python manage.py generate_invoices   # صورت‌حساب ماه قبل سازمان‌ها
+python manage.py reset_budgets       # بازنشانی بودجه کارمندانی که سال مالی‌شان تمام شده
 ```
 
 ## صفحه‌های عمومی سایت
@@ -171,14 +164,14 @@ CELERY_EAGER=false celery -A config beat -l info
 ## ساختار
 
 ```
-config/      تنظیمات Django، URLها، Celery
+config/      تنظیمات Django و URLها
 accounts/    کاربر، ورود OTP و ایمیل، پروفایل
 companies/   API منابع انسانی (کارکنان، بودجه، داشبورد، ثبت سازمان)
 catalog/     دسته‌بندی، سازمان، مجموعه، خدمت، سانس، امتیاز
 bookings/    رزرو، لغو، انقضا، ثبت ورود
 billing/     دفتر بودجه، کارمزد، تسویه مجموعه‌ها، فاکتور سازمان
 budgets/     تاریخچه بودجه کارمند
-core/        پیامک (کاوه‌نگار)، دسترسی‌ها، پیام‌های تماس با ما، دستورات مدیریتی (seed, reset_budgets)
+core/        پیامک (کاوه‌نگار)، دسترسی‌ها، پیام‌های تماس با ما، دستورات مدیریتی (seed, reset_budgets, generate_invoices)
 tests/       pytest
 web/         فرانت‌اند Next.js (App Router + Tailwind v4)
   src/components/ui   کتابخانه کامپوننت‌ها (Button, Card, Input, Modal, Table, Tabs, StatCard, Toast…)

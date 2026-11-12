@@ -57,7 +57,6 @@ export interface Offer {
 }
 
 export interface Venue {
-  source?: "manual" | "neshan";
   id: number;
   name: string;
   category: number;

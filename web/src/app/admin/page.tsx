@@ -196,7 +196,7 @@ export default function AdminPage() {
                         <PendingRow
                           key={v.id}
                           icon={categoryMeta(v.category_slug, v.category_name).icon}
-                          title={v.source === "neshan" ? `${v.name} · از نقشه نشان` : v.name}
+                          title={v.name}
                           lines={[
                             `${categoryMeta(v.category_slug, v.category_name).label} · ${[v.district, v.city].filter(Boolean).join("، ")}`,
                             [v.owner_name, v.phone].filter(Boolean).join(" · ") || v.address || "",

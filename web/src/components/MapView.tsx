@@ -72,5 +72,5 @@ export default function MapView({ venues, userLocation, onSelect }: Props) {
     };
   }, [ready, venues, userLocation]);
 
-  return <div ref={el} className="h-full w-full" />;
+  return <div ref={el} className="isolate h-full w-full" />;
 }

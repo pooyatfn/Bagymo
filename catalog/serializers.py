@@ -51,7 +51,7 @@ class VenueSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "category", "category_name", "category_slug", "address", "lat", "lng",
                   "district", "city", "gender_policy", "gender_for_now", "gender_slots",
                   "description", "phone", "owner_name",
-                  "offers", "status", "is_verified", "created_at", "source",
+                  "offers", "status", "is_verified", "created_at",
                   "avg_rating", "rating_count")
         read_only_fields = ("status", "is_verified", "created_at")
 

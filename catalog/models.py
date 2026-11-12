@@ -105,16 +105,6 @@ class Venue(models.Model):
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Source:
-        MANUAL = "manual"
-        NESHAN = "neshan"
-        CHOICES = [(MANUAL, "Manual / sign-up"), (NESHAN, "Neshan import")]
-
-    # where the record came from; imported venues are refreshed by `sync_neshan_venues`
-    source = models.CharField(max_length=16, choices=Source.CHOICES, default=Source.MANUAL, db_index=True)
-    external_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
-    synced_at = models.DateTimeField(null=True, blank=True)
-
     class Meta:
         db_table = "catalog_venue"
 
